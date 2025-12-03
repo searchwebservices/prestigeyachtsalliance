@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import ImageManager from './ImageManager';
 
 interface Yacht {
   id: string;
@@ -44,6 +45,7 @@ interface YachtImage {
   image_url: string;
   alt_text: string | null;
   is_primary: boolean | null;
+  display_order: number | null;
 }
 
 interface YachtDetailProps {
@@ -327,55 +329,75 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage }: Y
 
         {/* Images Tab */}
         <TabsContent value="images" className="mt-6">
-          <Card className="border-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <ImageIcon className="w-5 h-5 text-primary" />
-                Yacht Gallery
-              </CardTitle>
-              <CardDescription>Photos available for marketing and sales</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {images.length > 0 || defaultImage ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {defaultImage && images.length === 0 && (
-                    <div className="relative aspect-video rounded-lg overflow-hidden bg-muted group col-span-2">
-                      <img
-                        src={defaultImage}
-                        alt={yacht.name}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                      <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs">
-                        Primary
-                      </Badge>
-                    </div>
-                  )}
-                  {images.map((image) => (
-                    <div
-                      key={image.id}
-                      className="relative aspect-video rounded-lg overflow-hidden bg-muted group"
-                    >
-                      <img
-                        src={image.image_url}
-                        alt={image.alt_text || yacht.name}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                      {image.is_primary && (
+          {isAdmin ? (
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-primary" />
+                  Manage Images
+                </CardTitle>
+                <CardDescription>Upload, crop, and manage yacht photos</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ImageManager
+                  yachtId={yacht.id}
+                  yachtName={yacht.name}
+                  images={images}
+                  onUpdate={onUpdate || (() => {})}
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-primary" />
+                  Yacht Gallery
+                </CardTitle>
+                <CardDescription>Photos available for marketing and sales</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {images.length > 0 || defaultImage ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {defaultImage && images.length === 0 && (
+                      <div className="relative aspect-video rounded-lg overflow-hidden bg-muted group col-span-2">
+                        <img
+                          src={defaultImage}
+                          alt={yacht.name}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
                         <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs">
                           Primary
                         </Badge>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                  <ImageIcon className="w-12 h-12 mb-4 opacity-50" />
-                  <p>No images available yet.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      </div>
+                    )}
+                    {images.map((image) => (
+                      <div
+                        key={image.id}
+                        className="relative aspect-video rounded-lg overflow-hidden bg-muted group"
+                      >
+                        <img
+                          src={image.image_url}
+                          alt={image.alt_text || yacht.name}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        {image.is_primary && (
+                          <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs">
+                            Primary
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <ImageIcon className="w-12 h-12 mb-4 opacity-50" />
+                    <p>No images available yet.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Availability Tab */}
