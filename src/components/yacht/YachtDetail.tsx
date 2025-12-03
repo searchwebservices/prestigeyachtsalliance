@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import {
   Anchor,
   Users,
@@ -20,10 +19,13 @@ import {
   Save,
   X,
   Star,
+  Copy,
+  Download,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import ImageManager from './ImageManager';
+import { format } from 'date-fns';
 
 interface Yacht {
   id: string;
@@ -81,6 +83,105 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
     }).format(amount);
   };
 
+  const formatCurrencyPlain = (amount: number | null) => {
+    if (!amount) return 'Not set';
+    return `$${amount.toLocaleString()}`;
+  };
+
+  const handleExportAll = () => {
+    const content = `${yacht.name}
+${yacht.vessel_type} • Up to ${yacht.capacity} guests
+${yacht.is_flagship ? '⭐ Flagship Vessel' : ''}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TEAM DESCRIPTION
+${yacht.team_description || 'No description available.'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SALES DESCRIPTION
+${yacht.sales_description || 'No sales description available.'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PRICING
+Public Sales Price: ${formatCurrencyPlain(yacht.public_price)}
+Commission Amount: ${formatCurrencyPlain(yacht.commission_amount)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OWNER NOTES
+${yacht.owner_notes || 'No notes available.'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+IMAGES (${images.length} available)
+${images.map((img, i) => `${i + 1}. ${img.image_url}`).join('\n') || 'No images available.'}
+`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${yacht.slug || yacht.name.toLowerCase().replace(/\s+/g, '-')}-info-${format(new Date(), 'yyyy-MM-dd')}.txt`;
+    link.click();
+
+    toast({
+      title: 'Exported!',
+      description: 'Yacht information exported.',
+    });
+    onCopy?.('Full yacht export', 'Export');
+  };
+
+  const handleCopyAll = async () => {
+    const content = `${yacht.name}
+${yacht.vessel_type} • Up to ${yacht.capacity} guests
+
+TEAM DESCRIPTION:
+${yacht.team_description || 'No description available.'}
+
+SALES DESCRIPTION:
+${yacht.sales_description || 'No sales description available.'}
+
+PRICING:
+Public Sales Price: ${formatCurrencyPlain(yacht.public_price)}
+Commission Amount: ${formatCurrencyPlain(yacht.commission_amount)}
+
+OWNER NOTES:
+${yacht.owner_notes || 'No notes available.'}`;
+
+    await navigator.clipboard.writeText(content);
+    toast({
+      title: 'Copied!',
+      description: 'All yacht information copied to clipboard.',
+    });
+    onCopy?.(content, 'All info');
+  };
+
+  const handleCopyImageUrls = async () => {
+    const urls = images.map(img => img.image_url).join('\n');
+    await navigator.clipboard.writeText(urls);
+    toast({
+      title: 'Copied!',
+      description: `${images.length} image URLs copied to clipboard.`,
+    });
+    onCopy?.(urls, 'Image URLs');
+  };
+
+  const handleDownloadImage = async (url: string, index: number) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${yacht.slug || yacht.name.toLowerCase().replace(/\s+/g, '-')}-image-${index + 1}.jpg`;
+      link.click();
+    } catch {
+      // Fallback: open in new tab
+      window.open(url, '_blank');
+    }
+  };
+
   const handleEdit = () => {
     setEditData({
       team_description: yacht.team_description,
@@ -124,7 +225,37 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
     setIsSaving(false);
   };
 
-  const primaryImage = images.find((img) => img.is_primary) || images[0];
+  const CopyButton = ({ text, context, size = 'sm' }: { text: string; context: string; size?: 'sm' | 'icon' }) => {
+    if (!text) return null;
+    
+    if (size === 'icon') {
+      return (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCopy(text, context);
+          }}
+          title={`Copy ${context}`}
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => handleCopy(text, context)}
+      >
+        <Copy className="h-3.5 w-3.5 mr-1.5" />
+        Copy
+      </Button>
+    );
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -150,27 +281,41 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
           </div>
         </div>
 
-        {isAdmin && (
-          <div className="flex gap-2">
-            {isEditing ? (
-              <>
-                <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
-                  <X className="w-4 h-4 mr-2" />
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={isSaving}>
-                  <Save className="w-4 h-4 mr-2" />
-                  {isSaving ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </>
-            ) : (
-              <Button variant="outline" onClick={handleEdit}>
-                <Pencil className="w-4 h-4 mr-2" />
-                Edit Information
+        <div className="flex gap-2 flex-wrap">
+          {!isEditing && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleCopyAll}>
+                <Copy className="w-4 h-4 mr-2" />
+                Copy All
               </Button>
-            )}
-          </div>
-        )}
+              <Button variant="outline" size="sm" onClick={handleExportAll}>
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </>
+          )}
+          {isAdmin && (
+            <>
+              {isEditing ? (
+                <>
+                  <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSave} disabled={isSaving}>
+                    <Save className="w-4 h-4 mr-2" />
+                    {isSaving ? 'Saving...' : 'Save'}
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" onClick={handleEdit}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -202,12 +347,19 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
         <TabsContent value="overview" className="mt-6">
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  Team Description
-                </CardTitle>
-                <CardDescription>Internal information for the sales team</CardDescription>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Users className="w-5 h-5 text-primary" />
+                      Team Description
+                    </CardTitle>
+                    <CardDescription>Internal information for the sales team</CardDescription>
+                  </div>
+                  {!isEditing && yacht.team_description && (
+                    <CopyButton text={yacht.team_description} context="Team description" size="icon" />
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {isEditing ? (
@@ -226,12 +378,19 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
             </Card>
 
             <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  Owner Notes
-                </CardTitle>
-                <CardDescription>Important notes from the yacht owner</CardDescription>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-primary" />
+                      Owner Notes
+                    </CardTitle>
+                    <CardDescription>Important notes from the yacht owner</CardDescription>
+                  </div>
+                  {!isEditing && yacht.owner_notes && (
+                    <CopyButton text={yacht.owner_notes} context="Owner notes" size="icon" />
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {isEditing ? (
@@ -254,12 +413,19 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
         {/* Sales Info Tab */}
         <TabsContent value="sales" className="mt-6">
           <Card className="border-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-primary" />
-                Sales Description
-              </CardTitle>
-              <CardDescription>Copy for prospect clients and marketing materials</CardDescription>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                    Sales Description
+                  </CardTitle>
+                  <CardDescription>Copy for prospect clients and marketing materials</CardDescription>
+                </div>
+                {!isEditing && yacht.sales_description && (
+                  <CopyButton text={yacht.sales_description} context="Sales description" size="icon" />
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {isEditing ? (
@@ -270,20 +436,9 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
                   rows={10}
                 />
               ) : (
-                <div className="space-y-4">
-                  <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-                    {yacht.sales_description || 'No sales description available.'}
-                  </p>
-                  {yacht.sales_description && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCopy(yacht.sales_description!, 'Sales description')}
-                    >
-                      Copy Sales Description
-                    </Button>
-                  )}
-                </div>
+                <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                  {yacht.sales_description || 'No sales description available.'}
+                </p>
               )}
             </CardContent>
           </Card>
@@ -293,12 +448,19 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
         <TabsContent value="pricing" className="mt-6">
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-success" />
-                  Public Sales Price
-                </CardTitle>
-                <CardDescription>Price to quote to clients</CardDescription>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-success" />
+                      Public Sales Price
+                    </CardTitle>
+                    <CardDescription>Price to quote to clients</CardDescription>
+                  </div>
+                  {!isEditing && yacht.public_price && (
+                    <CopyButton text={formatCurrencyPlain(yacht.public_price)} context="Price" size="icon" />
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {isEditing ? (
@@ -320,12 +482,19 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
             </Card>
 
             <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-gold" />
-                  Commission Amount
-                </CardTitle>
-                <CardDescription>Your commission per booking</CardDescription>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-gold" />
+                      Commission Amount
+                    </CardTitle>
+                    <CardDescription>Your commission per booking</CardDescription>
+                  </div>
+                  {!isEditing && yacht.commission_amount && (
+                    <CopyButton text={formatCurrencyPlain(yacht.commission_amount)} context="Commission" size="icon" />
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {isEditing ? (
@@ -370,12 +539,22 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
             </Card>
           ) : (
             <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-primary" />
-                  Yacht Gallery
-                </CardTitle>
-                <CardDescription>Photos available for marketing and sales</CardDescription>
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <ImageIcon className="w-5 h-5 text-primary" />
+                      Yacht Gallery
+                    </CardTitle>
+                    <CardDescription>Photos available for marketing and sales</CardDescription>
+                  </div>
+                  {images.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={handleCopyImageUrls}>
+                      <Copy className="h-3.5 w-3.5 mr-1.5" />
+                      Copy URLs
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {images.length > 0 || defaultImage ? (
@@ -390,9 +569,19 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
                         <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs">
                           Primary
                         </Badge>
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleDownloadImage(defaultImage, 0)}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Download
+                          </Button>
+                        </div>
                       </div>
                     )}
-                    {images.map((image) => (
+                    {images.map((image, index) => (
                       <div
                         key={image.id}
                         className="relative aspect-video rounded-lg overflow-hidden bg-muted group"
@@ -407,6 +596,26 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
                             Primary
                           </Badge>
                         )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleCopy(image.image_url, 'Image URL')}
+                            title="Copy URL"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleDownloadImage(image.image_url, index)}
+                            title="Download"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
