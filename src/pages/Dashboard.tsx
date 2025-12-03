@@ -1,0 +1,194 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import YachtCard from '@/components/yacht/YachtCard';
+import YachtDetail from '@/components/yacht/YachtDetail';
+import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle, Ship } from 'lucide-react';
+import yachtMadeForWaves from '@/assets/yacht-hero.jpg';
+import yachtOceanBreeze from '@/assets/yacht-ocean-breeze.jpg';
+
+// Map of yacht slugs to their local images
+const localYachtImages: Record<string, string> = {
+  'made-for-waves': yachtMadeForWaves,
+  'ocean-breeze': yachtOceanBreeze,
+};
+
+interface Yacht {
+  id: string;
+  name: string;
+  slug: string;
+  vessel_type: string;
+  capacity: number;
+  team_description: string | null;
+  sales_description: string | null;
+  public_price: number | null;
+  commission_amount: number | null;
+  owner_notes: string | null;
+  cal_embed_url: string | null;
+  is_flagship: boolean | null;
+  display_order: number | null;
+}
+
+interface YachtImage {
+  id: string;
+  yacht_id: string;
+  image_url: string;
+  alt_text: string | null;
+  is_primary: boolean | null;
+  display_order: number | null;
+}
+
+export default function Dashboard() {
+  const { isLoading: authLoading } = useAuth();
+  const [yachts, setYachts] = useState<Yacht[]>([]);
+  const [images, setImages] = useState<YachtImage[]>([]);
+  const [selectedYachtId, setSelectedYachtId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Fetch yachts
+      const { data: yachtsData, error: yachtsError } = await supabase
+        .from('yachts')
+        .select('*')
+        .order('display_order', { ascending: true });
+
+      if (yachtsError) throw yachtsError;
+
+      // Fetch images
+      const { data: imagesData, error: imagesError } = await supabase
+        .from('yacht_images')
+        .select('*')
+        .order('display_order', { ascending: true });
+
+      if (imagesError) throw imagesError;
+
+      setYachts(yachtsData || []);
+      setImages(imagesData || []);
+
+      // Auto-select flagship or first yacht
+      if (yachtsData && yachtsData.length > 0) {
+        const flagship = yachtsData.find((y) => y.is_flagship);
+        setSelectedYachtId(flagship?.id || yachtsData[0].id);
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load yacht data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!authLoading) {
+      fetchData();
+    }
+  }, [authLoading]);
+
+  const selectedYacht = yachts.find((y) => y.id === selectedYachtId);
+  const selectedYachtImages = images.filter((img) => img.yacht_id === selectedYachtId);
+
+  const getYachtPrimaryImage = (yachtId: string) => {
+    const yacht = yachts.find((y) => y.id === yachtId);
+    const yachtImages = images.filter((img) => img.yacht_id === yachtId);
+    const primary = yachtImages.find((img) => img.is_primary);
+    
+    // Check for uploaded images first, then fall back to local assets
+    if (primary?.image_url) return primary.image_url;
+    if (yachtImages[0]?.image_url) return yachtImages[0].image_url;
+    
+    // Fall back to local images based on yacht slug
+    if (yacht?.slug && localYachtImages[yacht.slug]) {
+      return localYachtImages[yacht.slug];
+    }
+    
+    return yachtMadeForWaves; // Default fallback
+  };
+
+  if (authLoading || isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-48" />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-52 rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </DashboardLayout>
+    );
+  }
+
+  if (yachts.length === 0) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+            <Ship className="w-10 h-10 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground mb-2">No Yachts Available</h2>
+          <p className="text-muted-foreground max-w-md">
+            There are no yachts configured in the system yet. Please contact your administrator to add yacht information.
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-8">
+        {/* Yacht Selection */}
+        <section>
+          <h2 className="text-lg font-semibold text-foreground mb-4">Select a Yacht</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {yachts.map((yacht) => (
+              <YachtCard
+                key={yacht.id}
+                name={yacht.name}
+                vesselType={yacht.vessel_type}
+                capacity={yacht.capacity}
+                isFlagship={yacht.is_flagship || false}
+                imageUrl={getYachtPrimaryImage(yacht.id)}
+                isSelected={yacht.id === selectedYachtId}
+                onClick={() => setSelectedYachtId(yacht.id)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Yacht Details */}
+        {selectedYacht && (
+          <section>
+            <YachtDetail
+              yacht={selectedYacht}
+              images={selectedYachtImages}
+              onUpdate={fetchData}
+              defaultImage={getYachtPrimaryImage(selectedYacht.id)}
+            />
+          </section>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}
