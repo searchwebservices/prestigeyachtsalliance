@@ -68,9 +68,10 @@ export default function Login() {
 
       {/* Login modal - centered on all devices */}
       <Card className="relative z-10 w-full max-w-md mx-4 border-border/50 shadow-2xl animate-fade-in bg-background/95 backdrop-blur-sm">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-semibold text-foreground">Team Portal</CardTitle>
-          <CardDescription className="text-muted-foreground">
+        <CardHeader className="space-y-2 text-center">
+          <CardTitle className="text-2xl font-semibold text-foreground">Prestige Yachts</CardTitle>
+          <p className="text-base font-normal text-muted-foreground">Team Portal</p>
+          <CardDescription className="text-sm text-muted-foreground">
             Sign in to access yacht information and availability
           </CardDescription>
         </CardHeader>
