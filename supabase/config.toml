@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.get-user-activity]
 verify_jwt = false
+
+[functions.update-user-profile]
+verify_jwt = false
