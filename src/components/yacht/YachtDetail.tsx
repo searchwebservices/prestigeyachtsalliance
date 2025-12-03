@@ -53,14 +53,24 @@ interface YachtDetailProps {
   images: YachtImage[];
   onUpdate?: () => void;
   defaultImage?: string;
+  onCopy?: (content: string, context?: string) => void;
 }
 
-export default function YachtDetail({ yacht, images, onUpdate, defaultImage }: YachtDetailProps) {
+export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onCopy }: YachtDetailProps) {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<Partial<Yacht>>({});
+
+  const handleCopy = async (text: string, context: string) => {
+    await navigator.clipboard.writeText(text);
+    toast({
+      title: 'Copied!',
+      description: `${context} copied to clipboard.`,
+    });
+    onCopy?.(text, context);
+  };
 
   const formatCurrency = (amount: number | null) => {
     if (!amount) return 'Not set';
@@ -260,9 +270,20 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage }: Y
                   rows={10}
                 />
               ) : (
-                <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-                  {yacht.sales_description || 'No sales description available.'}
-                </p>
+                <div className="space-y-4">
+                  <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                    {yacht.sales_description || 'No sales description available.'}
+                  </p>
+                  {yacht.sales_description && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopy(yacht.sales_description!, 'Sales description')}
+                    >
+                      Copy Sales Description
+                    </Button>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>

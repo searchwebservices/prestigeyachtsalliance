@@ -1,1 +1,7 @@
 project_id = "uykzfpzawuyaroksyjsc"
+
+[functions.get-users]
+verify_jwt = false
+
+[functions.get-user-activity]
+verify_jwt = false
