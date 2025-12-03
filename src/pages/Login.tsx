@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Anchor, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const BG_DESKTOP = "https://i.imgur.com/NcnnKgl.jpeg";
@@ -69,12 +69,6 @@ export default function Login() {
       {/* Login modal - centered on all devices */}
       <Card className="relative z-10 w-full max-w-md mx-4 border-border/50 shadow-2xl animate-fade-in bg-background/95 backdrop-blur-sm">
         <CardHeader className="space-y-1 text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Anchor className="w-5 h-5 text-primary" />
-            </div>
-            <span className="text-xl font-semibold text-foreground">Prestige Yachts Alliance</span>
-          </div>
           <CardTitle className="text-2xl font-semibold text-foreground">Team Portal</CardTitle>
           <CardDescription className="text-muted-foreground">
             Sign in to access yacht information and availability
