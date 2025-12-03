@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Anchor, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import yachtHero from '@/assets/yacht-hero.jpg';
+
+const HERO_IMAGE_URL = 'https://i.imgur.com/QkXJvYL.jpeg';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -55,7 +56,7 @@ export default function Login() {
       {/* Left side - Hero image */}
       <div className="hidden lg:flex lg:w-1/2 relative">
         <img
-          src={yachtHero}
+          src={HERO_IMAGE_URL}
           alt="Luxury yacht in Los Cabos waters"
           className="absolute inset-0 w-full h-full object-cover"
         />
