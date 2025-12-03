@@ -21,6 +21,8 @@ import {
   Star,
   Copy,
   Download,
+  ExternalLink,
+  Shield,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -515,6 +517,34 @@ ${yacht.owner_notes || 'No notes available.'}`;
               </CardContent>
             </Card>
           </div>
+
+          {/* Deposit Payment Section */}
+          <Card className="mt-6 border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                Charter Deposit
+              </CardTitle>
+              <CardDescription>Secure the reservation with a refundable deposit</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                <div>
+                  <p className="text-2xl font-bold text-primary">$500</p>
+                  <p className="text-sm text-muted-foreground">USD - Refundable Deposit</p>
+                </div>
+                <Button
+                  onClick={() => window.open('https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01', '_blank')}
+                >
+                  Pay Deposit
+                  <ExternalLink className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Refunds are evaluated on a case-by-case basis. Acts of god (weather, natural disasters, etc.) are always fully refundable.
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Images Tab */}
