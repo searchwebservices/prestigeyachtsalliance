@@ -60,8 +60,8 @@ export default function Login() {
           alt="Luxury yacht in Los Cabos waters"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/80 to-primary/40" />
-        <div className="relative z-10 flex flex-col justify-center items-start p-12 h-full">
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/80 via-primary/40 via-50% to-transparent" />
+        <div className="relative z-10 flex flex-col justify-start items-start p-12 pt-[30%] h-full">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-full bg-gold/20 flex items-center justify-center">
               <Anchor className="w-6 h-6 text-gold" />
