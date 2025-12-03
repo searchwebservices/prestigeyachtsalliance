@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Anchor, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const HERO_IMAGE_URL = "https://i.imgur.com/iWjgotc.jpeg";
+const HERO_IMAGE_URL = "https://i.imgur.com/pyFpJyD.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
