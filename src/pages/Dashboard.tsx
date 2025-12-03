@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Ship } from 'lucide-react';
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 import yachtMadeForWaves from '@/assets/yacht-hero.jpg';
 import yachtOceanBreeze from '@/assets/yacht-ocean-breeze.jpg';
 
@@ -43,11 +44,17 @@ interface YachtImage {
 
 export default function Dashboard() {
   const { isLoading: authLoading } = useAuth();
+  const { trackYachtView, trackCopy } = useActivityTracker();
   const [yachts, setYachts] = useState<Yacht[]>([]);
   const [images, setImages] = useState<YachtImage[]>([]);
   const [selectedYachtId, setSelectedYachtId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleYachtSelect = (yacht: Yacht) => {
+    setSelectedYachtId(yacht.id);
+    trackYachtView(yacht.id, yacht.name);
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -171,7 +178,7 @@ export default function Dashboard() {
                 isFlagship={yacht.is_flagship || false}
                 imageUrl={getYachtPrimaryImage(yacht.id)}
                 isSelected={yacht.id === selectedYachtId}
-                onClick={() => setSelectedYachtId(yacht.id)}
+                onClick={() => handleYachtSelect(yacht)}
               />
             ))}
           </div>
@@ -185,6 +192,7 @@ export default function Dashboard() {
               images={selectedYachtImages}
               onUpdate={fetchData}
               defaultImage={getYachtPrimaryImage(selectedYacht.id)}
+              onCopy={trackCopy}
             />
           </section>
         )}

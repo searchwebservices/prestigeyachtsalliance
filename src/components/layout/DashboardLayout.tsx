@@ -1,8 +1,8 @@
 import { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Anchor, LogOut, Shield, User } from 'lucide-react';
+import { Anchor, LogOut, Shield, User, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +21,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, role, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
@@ -50,6 +51,28 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </span>
             </div>
           </div>
+
+          {/* Navigation Links */}
+          <nav className="hidden md:flex items-center gap-1">
+            <Button
+              variant={location.pathname === '/dashboard' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+            >
+              <Anchor className="w-4 h-4 mr-2" />
+              Yachts
+            </Button>
+            {isAdmin && (
+              <Button
+                variant={location.pathname === '/team' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => navigate('/team')}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Team
+              </Button>
+            )}
+          </nav>
 
           {/* User Menu */}
           <DropdownMenu>
