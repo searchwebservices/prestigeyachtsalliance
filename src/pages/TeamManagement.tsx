@@ -15,21 +15,26 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserDetailsDialog } from '@/components/team/UserDetailsDialog';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Shield, 
   User, 
   AlertCircle, 
   Users,
   ArrowLeft,
-  Activity
+  Activity,
+  Copy,
+  Download
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 
 interface TeamUser {
   id: string;
   email: string;
   full_name: string | null;
+  avatar_url: string | null;
   role: string;
   created_at: string;
   last_sign_in_at: string | null;
@@ -42,6 +47,7 @@ interface TeamUser {
 export default function TeamManagement() {
   const { isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +98,62 @@ export default function TeamManagement() {
     setDetailsOpen(true);
   };
 
+  const getUserInitials = (user: TeamUser) => {
+    if (user.full_name) {
+      return user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+    return user.email.substring(0, 2).toUpperCase();
+  };
+
+  const handleCopyTable = async () => {
+    const headers = ['Name', 'Email', 'Role', 'Last Active', 'Activity Count'];
+    const rows = users.map(user => [
+      user.full_name || '—',
+      user.email,
+      user.role,
+      user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'MMM d, yyyy HH:mm') : 'Never',
+      user.activity_count.toString()
+    ]);
+    
+    const text = [headers.join('\t'), ...rows.map(row => row.join('\t'))].join('\n');
+    await navigator.clipboard.writeText(text);
+    toast({
+      title: 'Copied!',
+      description: 'Team data copied to clipboard.',
+    });
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['Name', 'Email', 'Role', 'Member Since', 'Last Active', 'Page Loads', 'Copy Events', 'Yacht Views', 'Total Activity'];
+    const rows = users.map(user => [
+      user.full_name || '',
+      user.email,
+      user.role,
+      format(new Date(user.created_at), 'yyyy-MM-dd'),
+      user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'yyyy-MM-dd HH:mm:ss') : '',
+      user.page_loads.toString(),
+      user.copy_events.toString(),
+      user.yacht_views.toString(),
+      user.activity_count.toString()
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `team-members-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    
+    toast({
+      title: 'Exported!',
+      description: 'Team data exported as CSV.',
+    });
+  };
+
   if (authLoading) {
     return (
       <DashboardLayout>
@@ -106,7 +168,7 @@ export default function TeamManagement() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -125,6 +187,17 @@ export default function TeamManagement() {
                 View and manage team members and their activity
               </p>
             </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleCopyTable} disabled={loading || users.length === 0}>
+              <Copy className="h-4 w-4 mr-2" />
+              Copy
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={loading || users.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
         </div>
 
@@ -151,8 +224,7 @@ export default function TeamManagement() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-secondary/50">
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead>Member</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Last Active</TableHead>
                   <TableHead className="text-right">Activity</TableHead>
@@ -161,7 +233,7 @@ export default function TeamManagement() {
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                       No team members found
                     </TableCell>
                   </TableRow>
@@ -172,11 +244,23 @@ export default function TeamManagement() {
                       className="cursor-pointer hover:bg-secondary/30 transition-colors"
                       onClick={() => handleUserClick(user)}
                     >
-                      <TableCell className="font-medium">
-                        {user.full_name || '—'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {user.email}
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9 border border-border">
+                            <AvatarImage src={user.avatar_url || undefined} />
+                            <AvatarFallback className="bg-secondary text-secondary-foreground text-sm">
+                              {getUserInitials(user)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {user.full_name || '—'}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {user.email}
+                            </p>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -219,6 +303,7 @@ export default function TeamManagement() {
         user={selectedUser}
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
+        onUserUpdate={fetchUsers}
       />
     </DashboardLayout>
   );

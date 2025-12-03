@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
         id: authUser.id,
         email: authUser.email,
         full_name: profile?.full_name || null,
+        avatar_url: profile?.avatar_url || null,
         role: role?.role || "staff",
         created_at: authUser.created_at,
         last_sign_in_at: authUser.last_sign_in_at,
