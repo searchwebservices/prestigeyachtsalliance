@@ -1,8 +1,8 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Anchor, LogOut, Shield, User, Users } from 'lucide-react';
+import { Anchor, LogOut, User, Users } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,25 +12,51 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, role, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [fullName, setFullName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+      if (data?.full_name) {
+        setFullName(data.full_name);
+      }
+    };
+    fetchProfile();
+  }, [user?.id]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
   };
 
-  const userInitials = user?.email
-    ? user.email.substring(0, 2).toUpperCase()
-    : 'U';
+  // Get initials from full name (first & last) or fallback to email
+  const getInitials = () => {
+    if (fullName) {
+      const parts = fullName.trim().split(' ');
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      return fullName.substring(0, 2).toUpperCase();
+    }
+    return user?.email ? user.email.substring(0, 2).toUpperCase() : 'U';
+  };
+
+  const displayName = fullName || user?.email || 'User';
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,39 +106,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Button variant="ghost" className="relative h-10 px-3 gap-3">
                 <Avatar className="h-8 w-8 border border-border">
                   <AvatarFallback className="bg-secondary text-secondary-foreground text-sm font-medium">
-                    {userInitials}
+                    {getInitials()}
                   </AvatarFallback>
                 </Avatar>
-                <div className="hidden md:flex flex-col items-start">
-                  <span className="text-sm font-medium text-foreground">
-                    {user?.email}
-                  </span>
-                  <Badge
-                    variant={isAdmin ? 'default' : 'secondary'}
-                    className="text-xs h-5 px-1.5"
-                  >
-                    {isAdmin ? (
-                      <>
-                        <Shield className="w-3 h-3 mr-1" />
-                        Admin
-                      </>
-                    ) : (
-                      <>
-                        <User className="w-3 h-3 mr-1" />
-                        Staff
-                      </>
-                    )}
-                  </Badge>
-                </div>
+                <span className="hidden md:block text-sm font-medium text-foreground">
+                  {displayName}
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium text-foreground">{user?.email}</p>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    {role || 'User'} Account
-                  </p>
+                  <p className="text-sm font-medium text-foreground">{displayName}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
