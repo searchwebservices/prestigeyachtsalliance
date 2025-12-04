@@ -533,12 +533,23 @@ ${yacht.owner_notes || 'No notes available.'}`;
                   <p className="text-2xl font-bold text-primary">$500</p>
                   <p className="text-sm text-muted-foreground">USD - Refundable Deposit</p>
                 </div>
-                <Button
-                  onClick={() => window.open('https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01', '_blank')}
-                >
-                  Pay Deposit
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText('https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01');
+                      toast({ title: 'Copied!', description: 'Payment link copied to clipboard' });
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={() => window.open('https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01', '_blank')}
+                  >
+                    Pay Deposit
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <p className="text-sm text-muted-foreground">
                 Refunds are evaluated on a case-by-case basis. Acts of god (weather, natural disasters, etc.) are always fully refundable.
