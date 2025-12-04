@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import ImageManager from './ImageManager';
 import { format } from 'date-fns';
+import { useExchangeRate, convertToMXN, formatMXN } from '@/hooks/useExchangeRate';
 
 interface Yacht {
   id: string;
@@ -63,6 +64,7 @@ interface YachtDetailProps {
 export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onCopy }: YachtDetailProps) {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
+  const { rate: mxnRate, fetchedAt: rateFetchedAt } = useExchangeRate();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<Partial<Yacht>>({});
@@ -90,6 +92,12 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
     return `$${amount.toLocaleString()} USD`;
   };
 
+  const formatCurrencyWithMXN = (amount: number | null) => {
+    if (!amount) return 'Not set';
+    const mxnAmount = convertToMXN(amount, mxnRate);
+    return `$${amount.toLocaleString()} USD (${formatMXN(mxnAmount)})`;
+  };
+
   const handleExportAll = () => {
     const content = `${yacht.name}
 ${yacht.vessel_type} • Up to ${yacht.capacity} guests
@@ -108,8 +116,8 @@ ${yacht.sales_description || 'No sales description available.'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 PRICING
-Public Sales Price: ${formatCurrencyPlain(yacht.public_price)}
-Commission Amount: ${formatCurrencyPlain(yacht.commission_amount)}
+Public Sales Price: ${formatCurrencyWithMXN(yacht.public_price)}
+Commission Amount: ${formatCurrencyWithMXN(yacht.commission_amount)}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -146,8 +154,8 @@ SALES DESCRIPTION:
 ${yacht.sales_description || 'No sales description available.'}
 
 PRICING:
-Public Sales Price: ${formatCurrencyPlain(yacht.public_price)}
-Commission Amount: ${formatCurrencyPlain(yacht.commission_amount)}
+Public Sales Price: ${formatCurrencyWithMXN(yacht.public_price)}
+Commission Amount: ${formatCurrencyWithMXN(yacht.commission_amount)}
 
 OWNER NOTES:
 ${yacht.owner_notes || 'No notes available.'}`;
@@ -460,7 +468,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
                     <CardDescription>Price to quote to clients</CardDescription>
                   </div>
                   {!isEditing && yacht.public_price && (
-                    <CopyButton text={formatCurrencyPlain(yacht.public_price)} context="Price" size="icon" />
+                    <CopyButton text={formatCurrencyWithMXN(yacht.public_price)} context="Price" size="icon" />
                   )}
                 </div>
               </CardHeader>
@@ -476,9 +484,16 @@ ${yacht.owner_notes || 'No notes available.'}`;
                     />
                   </div>
                 ) : (
-                  <p className="text-3xl font-semibold text-success">
-                    {formatCurrency(yacht.public_price)}
-                  </p>
+                  <div>
+                    <p className="text-3xl font-semibold text-success">
+                      {formatCurrency(yacht.public_price)}
+                    </p>
+                    {yacht.public_price && (
+                      <p className="text-lg text-muted-foreground mt-1">
+                        {formatMXN(convertToMXN(yacht.public_price, mxnRate))}
+                      </p>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -494,7 +509,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
                     <CardDescription>Your commission per booking</CardDescription>
                   </div>
                   {!isEditing && yacht.commission_amount && (
-                    <CopyButton text={formatCurrencyPlain(yacht.commission_amount)} context="Commission" size="icon" />
+                    <CopyButton text={formatCurrencyWithMXN(yacht.commission_amount)} context="Commission" size="icon" />
                   )}
                 </div>
               </CardHeader>
@@ -510,13 +525,27 @@ ${yacht.owner_notes || 'No notes available.'}`;
                     />
                   </div>
                 ) : (
-                  <p className="text-3xl font-semibold text-gold">
-                    {formatCurrency(yacht.commission_amount)}
-                  </p>
+                  <div>
+                    <p className="text-3xl font-semibold text-gold">
+                      {formatCurrency(yacht.commission_amount)}
+                    </p>
+                    {yacht.commission_amount && (
+                      <p className="text-lg text-muted-foreground mt-1">
+                        {formatMXN(convertToMXN(yacht.commission_amount, mxnRate))}
+                      </p>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
           </div>
+
+          {/* Exchange Rate Info */}
+          {rateFetchedAt && (
+            <p className="text-xs text-muted-foreground mt-4">
+              Exchange rate updated: {format(rateFetchedAt, 'MMM d, yyyy')} (1 USD = {mxnRate.toFixed(2)} MXN)
+            </p>
+          )}
 
           {/* Deposit Payment Section */}
           <Card className="mt-6 border-border/50">
@@ -530,8 +559,8 @@ ${yacht.owner_notes || 'No notes available.'}`;
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
                 <div>
-                  <p className="text-2xl font-bold text-primary">$500</p>
-                  <p className="text-sm text-muted-foreground">USD - Refundable Deposit</p>
+                  <p className="text-2xl font-bold text-primary">$500 USD</p>
+                  <p className="text-sm text-muted-foreground">{formatMXN(convertToMXN(500, mxnRate))} - Refundable Deposit</p>
                 </div>
                 <div className="flex gap-2">
                   <Button
