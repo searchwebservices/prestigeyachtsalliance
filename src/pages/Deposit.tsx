@@ -70,7 +70,7 @@ export default function Deposit() {
               </p>
               {rateFetchedAt && (
                 <p className="text-xs text-muted-foreground">
-                  Exchange rate: 1 USD = {mxnRate.toFixed(2)} MXN (updated {format(rateFetchedAt, 'MMM d, yyyy')})
+                  Exchange rate: {mxnRate.toFixed(2)} USDMXN (updated {format(rateFetchedAt, 'MMM d, yyyy')})
                 </p>
               )}
             </div>

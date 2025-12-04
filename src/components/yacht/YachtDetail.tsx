@@ -543,7 +543,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
           {/* Exchange Rate Info */}
           {rateFetchedAt && (
             <p className="text-xs text-muted-foreground mt-4">
-              Exchange rate updated: {format(rateFetchedAt, 'MMM d, yyyy')} (1 USD = {mxnRate.toFixed(2)} MXN)
+              Exchange rate: {mxnRate.toFixed(2)} USDMXN (updated {format(rateFetchedAt, 'MMM d, yyyy')})
             </p>
           )}
 
