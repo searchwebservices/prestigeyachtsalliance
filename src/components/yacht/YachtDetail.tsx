@@ -560,7 +560,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
               <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
                 <div>
                   <p className="text-2xl font-bold text-primary">$500 USD</p>
-                  <p className="text-sm text-muted-foreground">{formatMXN(convertToMXN(500, mxnRate))} - Refundable Deposit</p>
+                  <p className="text-sm text-muted-foreground">Refundable Deposit</p>
                 </div>
                 <div className="flex gap-2">
                   <Button
