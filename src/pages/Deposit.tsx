@@ -2,10 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ExternalLink, Shield, RefreshCw } from "lucide-react";
+import { useExchangeRate, convertToMXN, formatMXN } from "@/hooks/useExchangeRate";
+import { format } from "date-fns";
 
 const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01";
+const DEPOSIT_AMOUNT = 500;
 
 export default function Deposit() {
+  const { rate: mxnRate, fetchedAt: rateFetchedAt } = useExchangeRate();
+
   const handlePayDeposit = () => {
     window.open(STRIPE_PAYMENT_LINK, "_blank");
   };
@@ -22,8 +27,10 @@ export default function Deposit() {
           </CardHeader>
           <CardContent className="space-y-8">
             <div className="text-center">
-              <p className="text-5xl font-bold text-primary">$500</p>
-              <p className="text-muted-foreground mt-1">USD</p>
+              <p className="text-5xl font-bold text-primary">${DEPOSIT_AMOUNT} USD</p>
+              <p className="text-xl text-muted-foreground mt-1">
+                {formatMXN(convertToMXN(DEPOSIT_AMOUNT, mxnRate))}
+              </p>
             </div>
 
             <div className="space-y-4">
@@ -57,9 +64,16 @@ export default function Deposit() {
               <ExternalLink className="ml-2 h-5 w-5" />
             </Button>
 
-            <p className="text-xs text-center text-muted-foreground">
-              You will be redirected to Stripe's secure checkout page.
-            </p>
+            <div className="text-center space-y-1">
+              <p className="text-xs text-muted-foreground">
+                You will be redirected to Stripe's secure checkout page.
+              </p>
+              {rateFetchedAt && (
+                <p className="text-xs text-muted-foreground">
+                  Exchange rate: 1 USD = {mxnRate.toFixed(2)} MXN (updated {format(rateFetchedAt, 'MMM d, yyyy')})
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
