@@ -8,14 +8,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Ship } from 'lucide-react';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
-import yachtMadeForWaves from '@/assets/yacht-hero.jpg';
-import yachtOceanBreeze from '@/assets/yacht-ocean-breeze.jpg';
-
-// Map of yacht slugs to their local images
-const localYachtImages: Record<string, string> = {
-  'made-for-waves': yachtMadeForWaves,
-  'ocean-breeze': yachtOceanBreeze,
-};
 
 interface Yacht {
   id: string;
@@ -102,21 +94,15 @@ export default function Dashboard() {
   const selectedYacht = yachts.find((y) => y.id === selectedYachtId);
   const selectedYachtImages = images.filter((img) => img.yacht_id === selectedYachtId);
 
-  const getYachtPrimaryImage = (yachtId: string) => {
-    const yacht = yachts.find((y) => y.id === yachtId);
+  const getYachtPrimaryImage = (yachtId: string): string | undefined => {
     const yachtImages = images.filter((img) => img.yacht_id === yachtId);
     const primary = yachtImages.find((img) => img.is_primary);
     
-    // Check for uploaded images first, then fall back to local assets
+    // Only return uploaded images, otherwise undefined for gray placeholder
     if (primary?.image_url) return primary.image_url;
     if (yachtImages[0]?.image_url) return yachtImages[0].image_url;
     
-    // Fall back to local images based on yacht slug
-    if (yacht?.slug && localYachtImages[yacht.slug]) {
-      return localYachtImages[yacht.slug];
-    }
-    
-    return yachtMadeForWaves; // Default fallback
+    return undefined;
   };
 
   if (authLoading || isLoading) {
