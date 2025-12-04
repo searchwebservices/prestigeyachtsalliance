@@ -87,7 +87,7 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
 
   const formatCurrencyPlain = (amount: number | null) => {
     if (!amount) return 'Not set';
-    return `$${amount.toLocaleString()}`;
+    return `$${amount.toLocaleString()} USD`;
   };
 
   const handleExportAll = () => {
