@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Anchor, LogOut, User, Users } from 'lucide-react';
+import { Anchor, LogOut, User, Users, Menu } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -23,6 +30,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [fullName, setFullName] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -44,6 +52,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     navigate('/');
   };
 
+  const handleNavigation = (path: string) => {
+    navigate(path);
+    setMobileMenuOpen(false);
+  };
+
   // Get initials from full name (first & last) or fallback to email
   const getInitials = () => {
     if (fullName) {
@@ -62,23 +75,75 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="container flex h-16 items-center justify-between">
+        <div className="container flex h-14 md:h-16 items-center justify-between px-4">
+          {/* Mobile Menu Button */}
+          <div className="flex md:hidden">
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72">
+                <SheetHeader className="text-left">
+                  <SheetTitle className="flex items-center gap-2">
+                    <Anchor className="w-5 h-5 text-primary" />
+                    Prestige Yachts
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col gap-2 mt-6">
+                  <Button
+                    variant={location.pathname === '/dashboard' ? 'secondary' : 'ghost'}
+                    className="justify-start h-11"
+                    onClick={() => handleNavigation('/dashboard')}
+                  >
+                    <Anchor className="w-4 h-4 mr-3" />
+                    Yachts
+                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant={location.pathname === '/team' ? 'secondary' : 'ghost'}
+                      className="justify-start h-11"
+                      onClick={() => handleNavigation('/team')}
+                    >
+                      <Users className="w-4 h-4 mr-3" />
+                      Team
+                    </Button>
+                  )}
+                  <div className="border-t border-border my-4" />
+                  <div className="px-3 py-2">
+                    <p className="text-sm font-medium text-foreground">{displayName}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    className="justify-start h-11 text-destructive hover:text-destructive"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="w-4 h-4 mr-3" />
+                    Sign out
+                  </Button>
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
+
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Anchor className="w-5 h-5 text-primary" />
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Anchor className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-semibold text-foreground tracking-tight">
+              <span className="text-base md:text-lg font-semibold text-foreground tracking-tight">
                 Prestige Yachts
               </span>
-              <span className="text-xs text-muted-foreground -mt-0.5">
+              <span className="text-[10px] md:text-xs text-muted-foreground -mt-0.5 hidden sm:block">
                 Alliance Portal
               </span>
             </div>
           </div>
 
-          {/* Navigation Links */}
+          {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-1">
             <Button
               variant={location.pathname === '/dashboard' ? 'secondary' : 'ghost'}
@@ -103,13 +168,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 px-3 gap-3">
-                <Avatar className="h-8 w-8 border border-border">
-                  <AvatarFallback className="bg-secondary text-secondary-foreground text-sm font-medium">
+              <Button variant="ghost" className="relative h-9 md:h-10 px-2 md:px-3 gap-2 md:gap-3">
+                <Avatar className="h-7 w-7 md:h-8 md:w-8 border border-border">
+                  <AvatarFallback className="bg-secondary text-secondary-foreground text-xs md:text-sm font-medium">
                     {getInitials()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden md:block text-sm font-medium text-foreground">
+                <span className="hidden md:block text-sm font-medium text-foreground max-w-[150px] truncate">
                   {displayName}
                 </span>
               </Button>
@@ -135,7 +200,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="container py-8">
+      <main className="container py-4 md:py-8 px-4">
         {children}
       </main>
     </div>

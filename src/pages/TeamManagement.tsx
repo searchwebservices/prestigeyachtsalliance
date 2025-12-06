@@ -166,37 +166,37 @@ export default function TeamManagement() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate('/dashboard')}
-              className="shrink-0"
+              className="shrink-0 h-9 w-9"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-                <Users className="h-6 w-6" />
+            <div className="min-w-0">
+              <h1 className="text-xl md:text-2xl font-semibold text-foreground flex items-center gap-2">
+                <Users className="h-5 w-5 md:h-6 md:w-6" />
                 Team Management
               </h1>
-              <p className="text-muted-foreground text-sm">
-                View and manage team members and their activity
+              <p className="text-muted-foreground text-xs md:text-sm">
+                View and manage team members
               </p>
             </div>
           </div>
           
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleCopyTable} disabled={loading || users.length === 0}>
+            <Button variant="outline" size="sm" onClick={handleCopyTable} disabled={loading || users.length === 0} className="h-9">
               <Copy className="h-4 w-4 mr-2" />
               Copy
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={loading || users.length === 0}>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={loading || users.length === 0} className="h-9">
               <Download className="h-4 w-4 mr-2" />
-              Export CSV
+              Export
             </Button>
           </div>
         </div>
@@ -218,84 +218,142 @@ export default function TeamManagement() {
           </div>
         )}
 
-        {/* Users Table */}
+        {/* Users Table - Desktop */}
         {!loading && !error && (
-          <div className="border border-border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-secondary/50">
-                  <TableHead>Member</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Last Active</TableHead>
-                  <TableHead className="text-right">Activity</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                      No team members found
-                    </TableCell>
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block border border-border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-secondary/50">
+                    <TableHead>Member</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Last Active</TableHead>
+                    <TableHead className="text-right">Activity</TableHead>
                   </TableRow>
-                ) : (
-                  users.map((user) => (
-                    <TableRow
-                      key={user.id}
-                      className="cursor-pointer hover:bg-secondary/30 transition-colors"
-                      onClick={() => handleUserClick(user)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 border border-border">
-                            <AvatarImage src={user.avatar_url || undefined} />
-                            <AvatarFallback className="bg-secondary text-secondary-foreground text-sm">
-                              {getUserInitials(user)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-foreground">
+                </TableHeader>
+                <TableBody>
+                  {users.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        No team members found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    users.map((user) => (
+                      <TableRow
+                        key={user.id}
+                        className="cursor-pointer hover:bg-secondary/30 transition-colors"
+                        onClick={() => handleUserClick(user)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9 border border-border">
+                              <AvatarImage src={user.avatar_url || undefined} />
+                              <AvatarFallback className="bg-secondary text-secondary-foreground text-sm">
+                                {getUserInitials(user)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {user.full_name || '—'}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {user.email}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={user.role === 'admin' ? 'default' : 'secondary'}
+                          >
+                            {user.role === 'admin' ? (
+                              <>
+                                <Shield className="w-3 h-3 mr-1" />
+                                Admin
+                              </>
+                            ) : (
+                              <>
+                                <User className="w-3 h-3 mr-1" />
+                                Staff
+                              </>
+                            )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {user.last_sign_in_at
+                            ? formatDistanceToNow(new Date(user.last_sign_in_at), { addSuffix: true })
+                            : 'Never'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1 text-muted-foreground">
+                            <Activity className="w-4 h-4" />
+                            <span>{user.activity_count}</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-3">
+              {users.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No team members found
+                </div>
+              ) : (
+                users.map((user) => (
+                  <div
+                    key={user.id}
+                    className="border border-border rounded-lg p-4 bg-card cursor-pointer active:bg-secondary/30 transition-colors"
+                    onClick={() => handleUserClick(user)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-10 w-10 border border-border shrink-0">
+                        <AvatarImage src={user.avatar_url || undefined} />
+                        <AvatarFallback className="bg-secondary text-secondary-foreground text-sm">
+                          {getUserInitials(user)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium text-foreground truncate">
                               {user.full_name || '—'}
                             </p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground truncate">
                               {user.email}
                             </p>
                           </div>
+                          <Badge
+                            variant={user.role === 'admin' ? 'default' : 'secondary'}
+                            className="shrink-0 text-xs"
+                          >
+                            {user.role === 'admin' ? 'Admin' : 'Staff'}
+                          </Badge>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={user.role === 'admin' ? 'default' : 'secondary'}
-                        >
-                          {user.role === 'admin' ? (
-                            <>
-                              <Shield className="w-3 h-3 mr-1" />
-                              Admin
-                            </>
-                          ) : (
-                            <>
-                              <User className="w-3 h-3 mr-1" />
-                              Staff
-                            </>
-                          )}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {user.last_sign_in_at
-                          ? formatDistanceToNow(new Date(user.last_sign_in_at), { addSuffix: true })
-                          : 'Never'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1 text-muted-foreground">
-                          <Activity className="w-4 h-4" />
-                          <span>{user.activity_count}</span>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          <span>
+                            {user.last_sign_in_at
+                              ? formatDistanceToNow(new Date(user.last_sign_in_at), { addSuffix: true })
+                              : 'Never active'}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Activity className="w-3 h-3" />
+                            {user.activity_count}
+                          </span>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
         )}
       </div>
 

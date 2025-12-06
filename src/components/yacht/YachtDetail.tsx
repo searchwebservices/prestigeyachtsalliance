@@ -268,24 +268,24 @@ ${yacht.owner_notes || 'No notes available.'}`;
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 md:space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Anchor className="w-7 h-7 text-primary" />
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start gap-3 md:gap-4">
+          <div className="w-11 h-11 md:w-14 md:h-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Anchor className="w-5 h-5 md:w-7 md:h-7 text-primary" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold text-foreground">{yacht.name}</h1>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl md:text-2xl font-semibold text-foreground">{yacht.name}</h1>
               {yacht.is_flagship && (
-                <Badge className="bg-gold text-primary-foreground border-0 gap-1">
+                <Badge className="bg-gold text-primary-foreground border-0 gap-1 text-xs">
                   <Star className="w-3 h-3 fill-current" />
                   Flagship
                 </Badge>
               )}
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-sm md:text-base text-muted-foreground">
               {yacht.vessel_type} • Up to {yacht.capacity} guests
             </p>
           </div>
@@ -294,11 +294,11 @@ ${yacht.owner_notes || 'No notes available.'}`;
         <div className="flex gap-2 flex-wrap">
           {!isEditing && (
             <>
-              <Button variant="outline" size="sm" onClick={handleCopyAll}>
+              <Button variant="outline" size="sm" onClick={handleCopyAll} className="h-9">
                 <Copy className="w-4 h-4 mr-2" />
                 Copy All
               </Button>
-              <Button variant="outline" size="sm" onClick={handleExportAll}>
+              <Button variant="outline" size="sm" onClick={handleExportAll} className="h-9">
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>
@@ -308,17 +308,17 @@ ${yacht.owner_notes || 'No notes available.'}`;
             <>
               {isEditing ? (
                 <>
-                  <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+                  <Button variant="outline" onClick={handleCancel} disabled={isSaving} className="h-9">
                     <X className="w-4 h-4 mr-2" />
                     Cancel
                   </Button>
-                  <Button onClick={handleSave} disabled={isSaving}>
+                  <Button onClick={handleSave} disabled={isSaving} className="h-9">
                     <Save className="w-4 h-4 mr-2" />
                     {isSaving ? 'Saving...' : 'Save'}
                   </Button>
                 </>
               ) : (
-                <Button variant="outline" size="sm" onClick={handleEdit}>
+                <Button variant="outline" size="sm" onClick={handleEdit} className="h-9">
                   <Pencil className="w-4 h-4 mr-2" />
                   Edit
                 </Button>
@@ -330,48 +330,50 @@ ${yacht.owner_notes || 'No notes available.'}`;
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="w-full justify-start bg-muted/50 p-1 h-auto flex-wrap">
-          <TabsTrigger value="overview" className="gap-2">
-            <FileText className="w-4 h-4" />
-            Overview
+        <TabsList className="w-full justify-start bg-muted/50 p-1 h-auto overflow-x-auto flex-nowrap scrollbar-hide">
+          <TabsTrigger value="overview" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
+            <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span className="hidden sm:inline">Overview</span>
+            <span className="sm:hidden">Info</span>
           </TabsTrigger>
-          <TabsTrigger value="sales" className="gap-2">
-            <MessageSquare className="w-4 h-4" />
-            Sales Info
+          <TabsTrigger value="sales" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
+            <MessageSquare className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span>Sales</span>
           </TabsTrigger>
-          <TabsTrigger value="pricing" className="gap-2">
-            <DollarSign className="w-4 h-4" />
-            Pricing
+          <TabsTrigger value="pricing" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
+            <DollarSign className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span>Pricing</span>
           </TabsTrigger>
-          <TabsTrigger value="images" className="gap-2">
-            <ImageIcon className="w-4 h-4" />
-            Images
+          <TabsTrigger value="images" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
+            <ImageIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span>Images</span>
           </TabsTrigger>
-          <TabsTrigger value="availability" className="gap-2">
-            <Calendar className="w-4 h-4" />
-            Availability
+          <TabsTrigger value="availability" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
+            <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span className="hidden sm:inline">Availability</span>
+            <span className="sm:hidden">Cal</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="mt-6">
-          <div className="grid gap-6 md:grid-cols-2">
+        <TabsContent value="overview" className="mt-4 md:mt-6">
+          <div className="grid gap-4 md:gap-6 md:grid-cols-2">
             <Card className="border-border/50">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Users className="w-5 h-5 text-primary" />
+              <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                      <Users className="w-4 h-4 md:w-5 md:h-5 text-primary shrink-0" />
                       Team Description
                     </CardTitle>
-                    <CardDescription>Internal information for the sales team</CardDescription>
+                    <CardDescription className="text-xs md:text-sm">Internal information for the sales team</CardDescription>
                   </div>
                   {!isEditing && yacht.team_description && (
                     <CopyButton text={yacht.team_description} context="Team description" size="icon" />
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
                 {isEditing ? (
                   <Textarea
                     value={editData.team_description || ''}
@@ -380,7 +382,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
                     rows={6}
                   />
                 ) : (
-                  <p className="text-foreground whitespace-pre-wrap">
+                  <p className="text-sm md:text-base text-foreground whitespace-pre-wrap">
                     {yacht.team_description || 'No description available.'}
                   </p>
                 )}
@@ -388,21 +390,21 @@ ${yacht.owner_notes || 'No notes available.'}`;
             </Card>
 
             <Card className="border-border/50">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-primary" />
+              <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                      <FileText className="w-4 h-4 md:w-5 md:h-5 text-primary shrink-0" />
                       Owner Notes
                     </CardTitle>
-                    <CardDescription>Important notes from the yacht owner</CardDescription>
+                    <CardDescription className="text-xs md:text-sm">Important notes from the yacht owner</CardDescription>
                   </div>
                   {!isEditing && yacht.owner_notes && (
                     <CopyButton text={yacht.owner_notes} context="Owner notes" size="icon" />
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
                 {isEditing ? (
                   <Textarea
                     value={editData.owner_notes || ''}
@@ -411,7 +413,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
                     rows={6}
                   />
                 ) : (
-                  <p className="text-foreground whitespace-pre-wrap">
+                  <p className="text-sm md:text-base text-foreground whitespace-pre-wrap">
                     {yacht.owner_notes || 'No notes available.'}
                   </p>
                 )}
@@ -421,23 +423,23 @@ ${yacht.owner_notes || 'No notes available.'}`;
         </TabsContent>
 
         {/* Sales Info Tab */}
-        <TabsContent value="sales" className="mt-6">
+        <TabsContent value="sales" className="mt-4 md:mt-6">
           <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-primary" />
+            <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-primary shrink-0" />
                     Sales Description
                   </CardTitle>
-                  <CardDescription>Copy for prospect clients and marketing materials</CardDescription>
+                  <CardDescription className="text-xs md:text-sm">Copy for prospect clients and marketing materials</CardDescription>
                 </div>
                 {!isEditing && yacht.sales_description && (
                   <CopyButton text={yacht.sales_description} context="Sales description" size="icon" />
                 )}
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
               {isEditing ? (
                 <Textarea
                   value={editData.sales_description || ''}
@@ -446,7 +448,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
                   rows={10}
                 />
               ) : (
-                <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                <p className="text-sm md:text-base text-foreground whitespace-pre-wrap leading-relaxed">
                   {yacht.sales_description || 'No sales description available.'}
                 </p>
               )}
@@ -455,24 +457,24 @@ ${yacht.owner_notes || 'No notes available.'}`;
         </TabsContent>
 
         {/* Pricing Tab */}
-        <TabsContent value="pricing" className="mt-6">
-          <div className="grid gap-6 md:grid-cols-2">
+        <TabsContent value="pricing" className="mt-4 md:mt-6">
+          <div className="grid gap-4 md:gap-6 md:grid-cols-2">
             <Card className="border-border/50">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-success" />
+              <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-success shrink-0" />
                       Public Sales Price
                     </CardTitle>
-                    <CardDescription>Price to quote to clients</CardDescription>
+                    <CardDescription className="text-xs md:text-sm">Price to quote to clients</CardDescription>
                   </div>
                   {!isEditing && yacht.public_price && (
                     <CopyButton text={formatCurrencyWithMXN(yacht.public_price)} context="Price" size="icon" />
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
                 {isEditing ? (
                   <div className="space-y-2">
                     <Label>Price (USD)</Label>
@@ -485,11 +487,11 @@ ${yacht.owner_notes || 'No notes available.'}`;
                   </div>
                 ) : (
                   <div>
-                    <p className="text-3xl font-semibold text-success">
+                    <p className="text-2xl md:text-3xl font-semibold text-success">
                       {formatCurrency(yacht.public_price)}
                     </p>
                     {yacht.public_price && (
-                      <p className="text-lg text-muted-foreground mt-1">
+                      <p className="text-base md:text-lg text-muted-foreground mt-1">
                         {formatMXN(convertToMXN(yacht.public_price, mxnRate))}
                       </p>
                     )}
@@ -499,21 +501,21 @@ ${yacht.owner_notes || 'No notes available.'}`;
             </Card>
 
             <Card className="border-border/50">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-gold" />
+              <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-gold shrink-0" />
                       Commission Amount
                     </CardTitle>
-                    <CardDescription>Your commission per booking</CardDescription>
+                    <CardDescription className="text-xs md:text-sm">Your commission per booking</CardDescription>
                   </div>
                   {!isEditing && yacht.commission_amount && (
                     <CopyButton text={formatCurrencyWithMXN(yacht.commission_amount)} context="Commission" size="icon" />
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
                 {isEditing ? (
                   <div className="space-y-2">
                     <Label>Commission (USD)</Label>
@@ -526,11 +528,11 @@ ${yacht.owner_notes || 'No notes available.'}`;
                   </div>
                 ) : (
                   <div>
-                    <p className="text-3xl font-semibold text-gold">
+                    <p className="text-2xl md:text-3xl font-semibold text-gold">
                       {formatCurrency(yacht.commission_amount)}
                     </p>
                     {yacht.commission_amount && (
-                      <p className="text-lg text-muted-foreground mt-1">
+                      <p className="text-base md:text-lg text-muted-foreground mt-1">
                         {formatMXN(convertToMXN(yacht.commission_amount, mxnRate))}
                       </p>
                     )}
@@ -548,23 +550,25 @@ ${yacht.owner_notes || 'No notes available.'}`;
           )}
 
           {/* Deposit Payment Section */}
-          <Card className="mt-6 border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Shield className="w-5 h-5 text-primary" />
+          <Card className="mt-4 md:mt-6 border-border/50">
+            <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
+              <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                <Shield className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 Charter Deposit
               </CardTitle>
-              <CardDescription>Secure the reservation with a refundable deposit</CardDescription>
+              <CardDescription className="text-xs md:text-sm">Secure the reservation with a refundable deposit</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+            <CardContent className="space-y-4 p-4 md:p-6 pt-0 md:pt-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 md:p-4 rounded-lg bg-muted/50">
                 <div>
-                  <p className="text-2xl font-bold text-primary">$500 USD</p>
-                  <p className="text-sm text-muted-foreground">Refundable Deposit</p>
+                  <p className="text-xl md:text-2xl font-bold text-primary">$500 USD</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">Refundable Deposit</p>
                 </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
+                    size="sm"
+                    className="h-9"
                     onClick={() => {
                       navigator.clipboard.writeText('https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01');
                       toast({ title: 'Copied!', description: 'Payment link copied to clipboard' });
@@ -573,6 +577,8 @@ ${yacht.owner_notes || 'No notes available.'}`;
                     <Copy className="h-4 w-4" />
                   </Button>
                   <Button
+                    size="sm"
+                    className="h-9"
                     onClick={() => window.open('https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01', '_blank')}
                   >
                     Pay Deposit
@@ -580,7 +586,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
                   </Button>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs md:text-sm text-muted-foreground">
                 Refunds are evaluated on a case-by-case basis. Acts of god (weather, natural disasters, etc.) are always fully refundable.
               </p>
             </CardContent>
@@ -588,17 +594,17 @@ ${yacht.owner_notes || 'No notes available.'}`;
         </TabsContent>
 
         {/* Images Tab */}
-        <TabsContent value="images" className="mt-6">
+        <TabsContent value="images" className="mt-4 md:mt-6">
           {isAdmin ? (
             <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-primary" />
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                   Manage Images
                 </CardTitle>
-                <CardDescription>Upload, crop, and manage yacht photos</CardDescription>
+                <CardDescription className="text-xs md:text-sm">Upload, crop, and manage yacht photos</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
                 <ImageManager
                   yachtId={yacht.id}
                   yachtName={yacht.name}
@@ -609,26 +615,27 @@ ${yacht.owner_notes || 'No notes available.'}`;
             </Card>
           ) : (
             <Card className="border-border/50">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <ImageIcon className="w-5 h-5 text-primary" />
+              <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 md:w-5 md:h-5 text-primary shrink-0" />
                       Yacht Gallery
                     </CardTitle>
-                    <CardDescription>Photos available for marketing and sales</CardDescription>
+                    <CardDescription className="text-xs md:text-sm">Photos available for marketing and sales</CardDescription>
                   </div>
                   {images.length > 0 && (
-                    <Button variant="outline" size="sm" onClick={handleCopyImageUrls}>
+                    <Button variant="outline" size="sm" onClick={handleCopyImageUrls} className="h-9 shrink-0">
                       <Copy className="h-3.5 w-3.5 mr-1.5" />
-                      Copy URLs
+                      <span className="hidden sm:inline">Copy URLs</span>
+                      <span className="sm:hidden">Copy</span>
                     </Button>
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
                 {images.length > 0 || defaultImage ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4">
                     {defaultImage && images.length === 0 && (
                       <div className="relative aspect-video rounded-lg overflow-hidden bg-muted group col-span-2">
                         <img
@@ -690,9 +697,9 @@ ${yacht.owner_notes || 'No notes available.'}`;
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <ImageIcon className="w-12 h-12 mb-4 opacity-50" />
-                    <p>No images available yet.</p>
+                  <div className="flex flex-col items-center justify-center py-8 md:py-12 text-muted-foreground">
+                    <ImageIcon className="w-10 h-10 md:w-12 md:h-12 mb-4 opacity-50" />
+                    <p className="text-sm md:text-base">No images available yet.</p>
                   </div>
                 )}
               </CardContent>
@@ -701,14 +708,14 @@ ${yacht.owner_notes || 'No notes available.'}`;
         </TabsContent>
 
         {/* Availability Tab */}
-        <TabsContent value="availability" className="mt-6">
+        <TabsContent value="availability" className="mt-4 md:mt-6">
           <Card className="border-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-primary" />
+            <CardHeader className="p-4 md:p-6">
+              <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-primary" />
                 Booking Calendar
               </CardTitle>
-              <CardDescription>View and manage availability</CardDescription>
+              <CardDescription className="text-xs md:text-sm">View and manage availability</CardDescription>
               {isEditing && (
                 <div className="mt-4 space-y-2">
                   <Label>Cal.com Embed URL</Label>
@@ -720,22 +727,22 @@ ${yacht.owner_notes || 'No notes available.'}`;
                 </div>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
               {yacht.cal_embed_url ? (
                 <div className="aspect-video w-full rounded-lg overflow-hidden bg-muted">
                   <iframe
                     src={yacht.cal_embed_url}
-                    className="w-full h-full min-h-[500px]"
+                    className="w-full h-full min-h-[350px] md:min-h-[500px]"
                     frameBorder="0"
                     title={`${yacht.name} Availability Calendar`}
                   />
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                  <Calendar className="w-12 h-12 mb-4 opacity-50" />
-                  <p>No calendar configured yet.</p>
+                <div className="flex flex-col items-center justify-center py-8 md:py-12 text-muted-foreground">
+                  <Calendar className="w-10 h-10 md:w-12 md:h-12 mb-4 opacity-50" />
+                  <p className="text-sm md:text-base">No calendar configured yet.</p>
                   {isAdmin && !isEditing && (
-                    <Button variant="outline" className="mt-4" onClick={handleEdit}>
+                    <Button variant="outline" className="mt-4 h-9" onClick={handleEdit}>
                       <Pencil className="w-4 h-4 mr-2" />
                       Add Calendar URL
                     </Button>
