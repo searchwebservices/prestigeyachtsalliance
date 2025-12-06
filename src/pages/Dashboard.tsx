@@ -150,11 +150,11 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
         {/* Yacht Selection */}
         <section>
-          <h2 className="text-lg font-semibold text-foreground mb-4">Select a Yacht</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Select a Yacht</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
             {yachts.map((yacht) => (
               <YachtCard
                 key={yacht.id}
