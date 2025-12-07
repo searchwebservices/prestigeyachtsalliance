@@ -729,10 +729,11 @@ ${yacht.owner_notes || 'No notes available.'}`;
             </CardHeader>
             <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
               {yacht.cal_embed_url ? (
-                <div className="w-full rounded-lg overflow-hidden bg-muted">
+                <div className="w-full rounded-lg overflow-hidden bg-muted" style={{ touchAction: 'pan-y' }}>
                   <iframe
                     src={yacht.cal_embed_url}
                     className="w-full h-[900px] md:h-[700px]"
+                    style={{ touchAction: 'pan-y', pointerEvents: 'auto' }}
                     frameBorder="0"
                     scrolling="no"
                     title={`${yacht.name} Availability Calendar`}
