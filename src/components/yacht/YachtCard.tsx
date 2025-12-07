@@ -10,6 +10,7 @@ interface YachtCardProps {
   imageUrl?: string;
   isSelected?: boolean;
   onClick?: () => void;
+  compact?: boolean;
 }
 
 export default function YachtCard({
@@ -20,6 +21,7 @@ export default function YachtCard({
   imageUrl,
   isSelected,
   onClick,
+  compact = false,
 }: YachtCardProps) {
   return (
     <Card
@@ -33,7 +35,7 @@ export default function YachtCard({
       onClick={onClick}
     >
       {/* Image */}
-      <div className="relative h-40 overflow-hidden bg-muted">
+      <div className={`relative overflow-hidden bg-muted ${compact ? 'h-24' : 'h-40'}`}>
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -42,30 +44,30 @@ export default function YachtCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Anchor className="w-12 h-12 text-muted-foreground/30" />
+            <Anchor className={`text-muted-foreground/30 ${compact ? 'w-8 h-8' : 'w-12 h-12'}`} />
           </div>
         )}
         {isFlagship && (
-          <Badge className="absolute top-3 right-3 bg-gold text-primary-foreground border-0 gap-1">
-            <Star className="w-3 h-3 fill-current" />
-            Flagship
+          <Badge className={`absolute top-2 right-2 bg-gold text-primary-foreground border-0 gap-1 ${compact ? 'text-xs px-1.5 py-0.5' : ''}`}>
+            <Star className={`fill-current ${compact ? 'w-2.5 h-2.5' : 'w-3 h-3'}`} />
+            {!compact && 'Flagship'}
           </Badge>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 via-transparent to-transparent" />
-        <div className="absolute bottom-3 left-3 right-3">
-          <h3 className="text-lg font-semibold text-primary-foreground truncate">
+        <div className={`absolute left-2 right-2 ${compact ? 'bottom-1.5' : 'bottom-3 left-3 right-3'}`}>
+          <h3 className={`font-semibold text-primary-foreground truncate ${compact ? 'text-sm' : 'text-lg'}`}>
             {name}
           </h3>
         </div>
       </div>
 
       {/* Info */}
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">{vesselType}</span>
-          <div className="flex items-center gap-1 text-foreground">
-            <Users className="w-4 h-4" />
-            <span>{capacity} guests</span>
+      <CardContent className={compact ? 'p-2' : 'p-4'}>
+        <div className={`flex items-center justify-between ${compact ? 'text-xs' : 'text-sm'}`}>
+          <span className="text-muted-foreground truncate">{vesselType}</span>
+          <div className="flex items-center gap-1 text-foreground flex-shrink-0">
+            <Users className={compact ? 'w-3 h-3' : 'w-4 h-4'} />
+            <span>{capacity}</span>
           </div>
         </div>
       </CardContent>

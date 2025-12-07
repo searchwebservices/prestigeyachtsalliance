@@ -151,21 +151,23 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-6 md:space-y-8">
-        {/* Yacht Selection */}
+        {/* Yacht Selection - Horizontal scroll on mobile */}
         <section>
           <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Select a Yacht</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+          <div className="flex md:grid md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible scrollbar-hide">
             {yachts.map((yacht) => (
-              <YachtCard
-                key={yacht.id}
-                name={yacht.name}
-                vesselType={yacht.vessel_type}
-                capacity={yacht.capacity}
-                isFlagship={yacht.is_flagship || false}
-                imageUrl={getYachtPrimaryImage(yacht.id)}
-                isSelected={yacht.id === selectedYachtId}
-                onClick={() => handleYachtSelect(yacht)}
-              />
+              <div key={yacht.id} className="flex-shrink-0 w-44 md:w-auto">
+                <YachtCard
+                  name={yacht.name}
+                  vesselType={yacht.vessel_type}
+                  capacity={yacht.capacity}
+                  isFlagship={yacht.is_flagship || false}
+                  imageUrl={getYachtPrimaryImage(yacht.id)}
+                  isSelected={yacht.id === selectedYachtId}
+                  onClick={() => handleYachtSelect(yacht)}
+                  compact
+                />
+              </div>
             ))}
           </div>
         </section>
