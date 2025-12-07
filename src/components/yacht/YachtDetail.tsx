@@ -732,7 +732,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
                 <div className="w-full rounded-lg overflow-hidden bg-muted">
                   <iframe
                     src={yacht.cal_embed_url}
-                    className="w-full h-[500px] md:h-[600px]"
+                    className="w-full h-[700px] md:h-[600px]"
                     frameBorder="0"
                     title={`${yacht.name} Availability Calendar`}
                   />
