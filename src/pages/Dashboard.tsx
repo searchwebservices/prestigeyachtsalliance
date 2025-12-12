@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import YachtCard from '@/components/yacht/YachtCard';
 import YachtDetail from '@/components/yacht/YachtDetail';
+import AddYachtDialog from '@/components/yacht/AddYachtDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -35,7 +36,7 @@ interface YachtImage {
 }
 
 export default function Dashboard() {
-  const { isLoading: authLoading } = useAuth();
+  const { isLoading: authLoading, isAdmin } = useAuth();
   const { trackYachtView, trackCopy } = useActivityTracker();
   const [yachts, setYachts] = useState<Yacht[]>([]);
   const [images, setImages] = useState<YachtImage[]>([]);
@@ -153,7 +154,10 @@ export default function Dashboard() {
       <div className="space-y-6 md:space-y-8">
         {/* Yacht Selection - Horizontal scroll on mobile */}
         <section>
-          <h2 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">Select a Yacht</h2>
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <h2 className="text-base md:text-lg font-semibold text-foreground">Select a Yacht</h2>
+            {isAdmin && <AddYachtDialog onSuccess={fetchData} />}
+          </div>
           <div className="flex md:grid md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible scrollbar-hide">
             {yachts.map((yacht) => (
               <div key={yacht.id} className="flex-shrink-0 w-44 md:w-auto">
