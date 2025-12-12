@@ -1,5 +1,4 @@
-# Project ID is configured via Supabase CLI: supabase link --project-ref YOUR_PROJECT_ID
-project_id = ""
+project_id = "uykzfpzawuyaroksyjsc"
 
 [functions.get-users]
 verify_jwt = false
