@@ -31,7 +31,7 @@ export type YachtBookingConfig = {
 export const BLOCK_DURATIONS: Record<BlockScope, number> = {
   HALF_AM: 240,
   HALF_PM: 360,
-  FULL_DAY: 660,
+  FULL_DAY: 480,
 };
 
 export type CalApiConfig = {
