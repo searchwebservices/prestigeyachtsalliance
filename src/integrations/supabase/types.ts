@@ -231,8 +231,8 @@ export type Database = {
           booking_mode: string
           booking_public_enabled: boolean
           booking_v2_live_from: string | null
-          cal_event_type_id: number | null
           cal_embed_url: string | null
+          cal_event_type_id: number | null
           capacity: number
           commission_amount: number | null
           created_at: string
@@ -252,8 +252,8 @@ export type Database = {
           booking_mode?: string
           booking_public_enabled?: boolean
           booking_v2_live_from?: string | null
-          cal_event_type_id?: number | null
           cal_embed_url?: string | null
+          cal_event_type_id?: number | null
           capacity?: number
           commission_amount?: number | null
           created_at?: string
@@ -273,8 +273,8 @@ export type Database = {
           booking_mode?: string
           booking_public_enabled?: boolean
           booking_v2_live_from?: string | null
-          cal_event_type_id?: number | null
           cal_embed_url?: string | null
+          cal_event_type_id?: number | null
           capacity?: number
           commission_amount?: number | null
           created_at?: string
