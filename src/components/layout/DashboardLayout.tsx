@@ -21,7 +21,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DashboardLayoutProps {
@@ -34,6 +34,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [fullName, setFullName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -41,12 +42,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       if (!user?.id) return;
       const { data } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('full_name, avatar_url')
         .eq('id', user.id)
         .single();
-      if (data?.full_name) {
-        setFullName(data.full_name);
-      }
+      if (data?.full_name) setFullName(data.full_name);
+      if (data?.avatar_url) setAvatarUrl(data.avatar_url);
     };
     fetchProfile();
   }, [user?.id]);
@@ -194,6 +194,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-9 md:h-10 px-2 md:px-3 gap-2 md:gap-3">
                   <Avatar className="h-7 w-7 md:h-8 md:w-8 border border-border">
+                    {avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
                     <AvatarFallback className="bg-secondary text-secondary-foreground text-xs md:text-sm font-medium">
                       {getInitials()}
                     </AvatarFallback>
