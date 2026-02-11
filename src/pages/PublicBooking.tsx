@@ -250,6 +250,7 @@ export default function PublicBooking() {
             isSubmitting={submitting}
             turnstileSiteKey={turnstileSiteKey}
             onRequestedHoursChange={setRequestedHours}
+            onHalfChange={setSelectedHalf}
             onSubmit={submitBooking}
           />
         </div>
@@ -257,4 +258,3 @@ export default function PublicBooking() {
     </div>
   );
 }
-

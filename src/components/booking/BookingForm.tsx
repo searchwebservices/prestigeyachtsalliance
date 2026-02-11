@@ -43,10 +43,25 @@ type Props = {
   isSubmitting: boolean;
   turnstileSiteKey?: string;
   onRequestedHoursChange: (hours: number) => void;
+  onHalfChange: (half: HalfSelection) => void;
   onSubmit: (payload: SubmitPayload) => Promise<void> | void;
 };
 
 const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script';
+
+const formatHour = (hour24: number) => {
+  const normalized = ((hour24 % 24) + 24) % 24;
+  const suffix = normalized >= 12 ? 'PM' : 'AM';
+  const hour12 = normalized % 12 === 0 ? 12 : normalized % 12;
+  return `${hour12}:00 ${suffix}`;
+};
+
+const getRangeLabel = (requestedHours: number, half: HalfSelection) => {
+  if (!half) return 'Select AM or PM';
+  const startHour = half === 'am' ? 8 : 13;
+  const endHour = startHour + requestedHours;
+  return `${formatHour(startHour)} - ${formatHour(endHour)}`;
+};
 
 function TurnstileWidget({
   siteKey,
@@ -109,6 +124,7 @@ export default function BookingForm({
   isSubmitting,
   turnstileSiteKey,
   onRequestedHoursChange,
+  onHalfChange,
   onSubmit,
 }: Props) {
   const [name, setName] = useState('');
@@ -166,11 +182,32 @@ export default function BookingForm({
               Select AM (starts 08:00, up to 8h) or PM (starts 13:00, up to 6h). 5+ hour bookings
               block the full day regardless of selected start half.
             </p>
+            <p className="text-xs text-muted-foreground">
+              Time range: <span className="font-medium">{getRangeLabel(requestedHours, selectedHalf)}</span>
+            </p>
             {pmExceeded && (
               <p className="text-xs text-destructive font-medium">
                 PM supports up to {PM_MAX_HOURS}h. Please reduce hours or select AM.
               </p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="segment">Segment</Label>
+            <select
+              id="segment"
+              value={selectedHalf || ''}
+              onChange={(event) =>
+                onHalfChange(event.target.value === 'am' || event.target.value === 'pm' ? event.target.value : null)
+              }
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">Select segment</option>
+              <option value="am">AM (starts 08:00)</option>
+              <option value="pm" disabled={requestedHours > PM_MAX_HOURS}>
+                PM (starts 13:00)
+              </option>
+            </select>
           </div>
 
           <div className="rounded-md border border-border/60 bg-muted/30 p-3 text-sm">

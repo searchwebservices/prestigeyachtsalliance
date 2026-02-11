@@ -563,7 +563,11 @@ export const buildAvailabilityForMonth = async ({
 
     const metadata = isRecord(booking.metadata) ? booking.metadata : {};
     const explicitScope = normalizeBlockScope(asString(metadata.block_scope));
-    const blockScope = explicitScope || inferBlockScope({ startIso, endIso, timeZone });
+    const requestedHoursRaw = asString(metadata.requested_hours);
+    const requestedHours = requestedHoursRaw ? Number(requestedHoursRaw) : Number.NaN;
+    const blockScopeFromHours =
+      Number.isFinite(requestedHours) && requestedHours >= 5 ? 'FULL_DAY' : null;
+    const blockScope = blockScopeFromHours || explicitScope || inferBlockScope({ startIso, endIso, timeZone });
     const local = toTimeZoneParts(startIso, timeZone);
 
     const day = getOrCreate(bookedMap, local.dateKey, () => ({ am: false, pm: false }));
