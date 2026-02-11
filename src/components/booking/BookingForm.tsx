@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { BOOKING_MAX_HOURS, BOOKING_MIN_HOURS } from '@/lib/bookingPolicy';
+import { BOOKING_MAX_HOURS, BOOKING_MIN_HOURS, PM_MAX_HOURS } from '@/lib/bookingPolicy';
 
 declare global {
   interface Window {
@@ -117,12 +117,12 @@ export default function BookingForm({
   const [notes, setNotes] = useState('');
   const [cfToken, setCfToken] = useState<string | null>(null);
 
-  const requiresHalf = requestedHours <= 4;
-  const hasValidSelection = !!selectedDate && (requiresHalf ? !!selectedHalf : true);
+  const hasValidSelection = !!selectedDate && !!selectedHalf;
+  const pmExceeded = selectedHalf === 'pm' && requestedHours > PM_MAX_HOURS;
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!hasValidSelection) return;
+    if (!hasValidSelection || pmExceeded) return;
     if (!name.trim() || !email.trim()) return;
     if (turnstileSiteKey && !cfToken) return;
 
@@ -163,10 +163,13 @@ export default function BookingForm({
               ))}
             </select>
             <p className="text-xs text-muted-foreground">
-              {requiresHalf
-                ? 'For 3-4 hours, select either AM (08:00-12:00) or PM (13:00-19:00).'
-                : 'For 5+ hours, booking blocks the full day (08:00-19:00).'}
+              Select AM (starts 08:00, up to 8h) or PM (starts 13:00, up to 6h).
             </p>
+            {pmExceeded && (
+              <p className="text-xs text-destructive font-medium">
+                PM supports up to {PM_MAX_HOURS}h. Please reduce hours or select AM.
+              </p>
+            )}
           </div>
 
           <div className="rounded-md border border-border/60 bg-muted/30 p-3 text-sm">
@@ -175,7 +178,7 @@ export default function BookingForm({
             </p>
             <p>
               <span className="font-medium">Segment:</span>{' '}
-              {requiresHalf ? (selectedHalf ? selectedHalf.toUpperCase() : 'Not selected') : 'FULL DAY'}
+              {selectedHalf ? selectedHalf.toUpperCase() : 'Not selected'}
             </p>
           </div>
 
@@ -230,7 +233,7 @@ export default function BookingForm({
             </div>
           ) : null}
 
-          <Button type="submit" className="w-full" disabled={!hasValidSelection || isSubmitting}>
+          <Button type="submit" className="w-full" disabled={!hasValidSelection || pmExceeded || isSubmitting}>
             {isSubmitting ? 'Submitting...' : 'Submit Booking Request'}
           </Button>
         </form>

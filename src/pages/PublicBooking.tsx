@@ -97,11 +97,7 @@ export default function PublicBooking() {
     loadAvailability();
   }, [loadAvailability]);
 
-  useEffect(() => {
-    if (requestedHours >= 5) {
-      setSelectedHalf(null);
-    }
-  }, [requestedHours]);
+  // Half is always required — no clearing on hour change.
 
   const handleSelection = ({ date, half }: { date: string; half: 'am' | 'pm' | null }) => {
     setSelectedDate(date);
@@ -130,7 +126,7 @@ export default function PublicBooking() {
           slug: yachtSlug,
           date: selectedDate,
           requestedHours: payload.requestedHours,
-          half: payload.requestedHours <= 4 ? selectedHalf : null,
+          half: selectedHalf,
           attendee: payload.attendee,
           notes: payload.notes,
           cfToken: payload.cfToken,

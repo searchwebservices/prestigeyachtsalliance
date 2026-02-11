@@ -9,25 +9,17 @@ export const BOOKING_WINDOWS = {
 } as const;
 
 export const BOOKING_MIN_HOURS = 3;
-export const BOOKING_MAX_HOURS = 11;
+export const BOOKING_MAX_HOURS = 8;
 
-export const BLOCK_DURATIONS_MINUTES = {
-  HALF_AM: 240,
-  HALF_PM: 360,
-  FULL_DAY: 480,
-} as const;
+export const PM_MAX_HOURS = 6;
 
 export type BookingMode = 'legacy_embed' | 'policy_v2';
 export type BookingHalf = 'am' | 'pm';
 export type DayState = 'available' | 'booked' | 'closed';
-export type BlockScope = keyof typeof BLOCK_DURATIONS_MINUTES;
 
 export type DayAvailability = {
   am: DayState;
   pm: DayState;
   fullOpen: boolean;
 };
-
-export const isHalfDayBooking = (hours: number) => hours === 3 || hours === 4;
-export const isFullDayBooking = (hours: number) => hours >= 5;
 

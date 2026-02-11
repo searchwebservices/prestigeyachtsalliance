@@ -279,8 +279,7 @@ Deno.serve(async (req) => {
       body: {
         start: bookingStartUtc,
         eventTypeId: yacht.cal_event_type_id,
-        // lengthInMinutes temporarily removed: Cal.com API 2024-08-13 rejects it
-        // unless event type has "multiple durations" explicitly enabled
+        lengthInMinutes: blockResolution.blockMinutes,
         attendee: {
           name: attendeeName,
           email: attendeeEmail,
