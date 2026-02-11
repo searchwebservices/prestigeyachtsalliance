@@ -9,6 +9,8 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useTheme } from "next-themes";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { uiText } from "@/lib/uiText";
 
 const BG_DESKTOP = "https://i.imgur.com/NcnnKgl.jpeg";
 const BG_MOBILE = "https://i.imgur.com/fULRq0K.jpeg";
@@ -21,9 +23,11 @@ export default function Login() {
   const [mounted, setMounted] = useState(false);
   const { signIn } = useAuth();
   const { resolvedTheme } = useTheme();
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const isDark = mounted && resolvedTheme === "dark";
+  const copy = uiText[language];
 
   useEffect(() => {
     setMounted(true);
@@ -35,8 +39,8 @@ export default function Login() {
     if (!email || !password) {
       toast({
         variant: "destructive",
-        title: "Missing credentials",
-        description: "Please enter both email and password.",
+        title: copy.missingCredentialsTitle,
+        description: copy.missingCredentialsDescription,
       });
       return;
     }
@@ -48,16 +52,16 @@ export default function Login() {
     if (error) {
       toast({
         variant: "destructive",
-        title: "Authentication failed",
-        description: "Invalid email or password. Please try again.",
+        title: copy.authFailedTitle,
+        description: copy.authFailedDescription,
       });
       setIsLoading(false);
       return;
     }
 
     toast({
-      title: "Welcome back",
-      description: "Successfully signed in.",
+      title: copy.welcomeBackTitle,
+      description: copy.welcomeBackDescription,
     });
     navigate("/dashboard");
   };
@@ -95,17 +99,15 @@ export default function Login() {
       <Card className="relative z-10 w-full max-w-md mx-4 border-border/50 shadow-2xl animate-fade-in bg-card">
         <CardHeader className="space-y-2 text-center">
           <CardTitle className="text-2xl font-bold text-foreground">Prestige Yachts Alliance</CardTitle>
-          <p className="text-base font-semibold text-muted-foreground">Team Portal</p>
+          <p className="text-base font-semibold text-muted-foreground">{copy.teamPortal}</p>
           <CardDescription className="text-sm text-muted-foreground">
-            Sign in to access yacht information and availability
+            {copy.loginDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground">
-                Email
-              </Label>
+              <Label htmlFor="email" className="text-foreground">{copy.email}</Label>
               <Input
                 id="email"
                 type="email"
@@ -117,9 +119,7 @@ export default function Login() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-foreground">
-                Password
-              </Label>
+              <Label htmlFor="password" className="text-foreground">{copy.password}</Label>
               <Input
                 id="password"
                 type="password"
@@ -138,15 +138,15 @@ export default function Login() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  {copy.signingIn}
                 </>
               ) : (
-                "Sign In"
+                copy.signIn
               )}
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Contact your administrator if you need account access.
+            {copy.contactAdmin}
           </p>
         </CardContent>
       </Card>

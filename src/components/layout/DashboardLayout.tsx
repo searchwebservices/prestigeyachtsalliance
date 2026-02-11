@@ -1,9 +1,11 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import { Anchor, LogOut, Users, Menu } from 'lucide-react';
+import { Anchor, LogOut, Users, Menu, Settings as SettingsIcon } from 'lucide-react';
+import { uiText } from '@/lib/uiText';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +30,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, signOut, isAdmin } = useAuth();
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [fullName, setFullName] = useState<string | null>(null);
@@ -71,6 +74,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const displayName = fullName || user?.email || 'User';
+  const copy = uiText[language];
 
   return (
     <div className="min-h-screen bg-background">
@@ -99,7 +103,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     onClick={() => handleNavigation('/dashboard')}
                   >
                     <Anchor className="w-4 h-4 mr-3" />
-                    Yachts
+                    {copy.yachts}
                   </Button>
                   {isAdmin && (
                     <Button
@@ -108,9 +112,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       onClick={() => handleNavigation('/team')}
                     >
                       <Users className="w-4 h-4 mr-3" />
-                      Team
+                      {copy.team}
                     </Button>
                   )}
+                  <Button
+                    variant={location.pathname === '/settings' ? 'secondary' : 'ghost'}
+                    className="justify-start h-11"
+                    onClick={() => handleNavigation('/settings')}
+                  >
+                    <SettingsIcon className="w-4 h-4 mr-3" />
+                    {copy.settings}
+                  </Button>
                   <div className="border-t border-border my-4" />
                   <div className="px-3 py-2">
                     <p className="text-sm font-medium text-foreground">{displayName}</p>
@@ -122,7 +134,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     onClick={handleSignOut}
                   >
                     <LogOut className="w-4 h-4 mr-3" />
-                    Sign out
+                    {copy.signOut}
                   </Button>
                 </nav>
               </SheetContent>
@@ -139,7 +151,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 Prestige Yachts
               </span>
               <span className="text-[10px] md:text-xs text-muted-foreground -mt-0.5 hidden sm:block">
-                Alliance Portal
+                {copy.teamPortal}
               </span>
             </div>
           </div>
@@ -152,7 +164,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               onClick={() => navigate('/dashboard')}
             >
               <Anchor className="w-4 h-4 mr-2" />
-              Yachts
+              {copy.yachts}
             </Button>
             {isAdmin && (
               <Button
@@ -161,9 +173,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 onClick={() => navigate('/team')}
               >
                 <Users className="w-4 h-4 mr-2" />
-                Team
+                {copy.team}
               </Button>
             )}
+            <Button
+              variant={location.pathname === '/settings' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/settings')}
+            >
+              <SettingsIcon className="w-4 h-4 mr-2" />
+              {copy.settings}
+            </Button>
           </nav>
 
           <div className="flex items-center gap-1 md:gap-2">
@@ -191,12 +211,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
+                  <SettingsIcon className="mr-2 h-4 w-4" />
+                  {copy.settings}
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleSignOut}
                   className="text-destructive focus:text-destructive cursor-pointer"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
+                  {copy.signOut}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
