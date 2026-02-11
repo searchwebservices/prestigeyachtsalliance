@@ -290,6 +290,7 @@ Deno.serve(async (req) => {
           policy_version: BOOKING_POLICY_VERSION,
           yacht_slug: yacht.slug,
           block_scope: blockResolution.blockScope,
+          selected_half: half || '',
           requested_hours: String(requestedHours),
           timezone: BOOKING_TIMEZONE,
           source: BOOKING_SOURCE,

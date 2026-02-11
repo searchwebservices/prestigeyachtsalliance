@@ -638,7 +638,8 @@ export const resolveBookingBlock = ({
 
   const startHour = half === 'am' ? 8 : 13;
   const blockMinutes = requestedHours * 60;
-  const blockScope: BlockScope = half === 'am' ? 'HALF_AM' : 'HALF_PM';
+  const blockScope: BlockScope =
+    requestedHours >= 5 ? 'FULL_DAY' : half === 'am' ? 'HALF_AM' : 'HALF_PM';
 
   return { ok: true, blockScope, blockMinutes, startHour };
 };
@@ -652,6 +653,11 @@ export const isSelectionAvailable = ({
   requestedHours: number;
   half: BookingHalf | null;
 }) => {
+  if (requestedHours >= 5) {
+    // 5+ hour requests reserve the full day inventory regardless of AM/PM start preference.
+    return day.am === 'available' && day.pm === 'available';
+  }
+
   if (half === 'am') return day.am === 'available';
   if (half === 'pm') return day.pm === 'available';
   return false;

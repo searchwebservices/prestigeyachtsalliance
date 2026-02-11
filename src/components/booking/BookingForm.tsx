@@ -163,7 +163,8 @@ export default function BookingForm({
               ))}
             </select>
             <p className="text-xs text-muted-foreground">
-              Select AM (starts 08:00, up to 8h) or PM (starts 13:00, up to 6h).
+              Select AM (starts 08:00, up to 8h) or PM (starts 13:00, up to 6h). 5+ hour bookings
+              block the full day regardless of selected start half.
             </p>
             {pmExceeded && (
               <p className="text-xs text-destructive font-medium">
