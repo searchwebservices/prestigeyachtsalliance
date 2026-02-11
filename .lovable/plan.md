@@ -1,107 +1,156 @@
+# Booking V2 Smoke Test Execution Plan (Updated)
 
+## Summary
+Validate Booking V2 end-to-end for pilot yacht `made-for-waves` after the `660 -> 480` full-day patch, then rollback safely to legacy mode.
 
-# Booking V2 Deployment Execution Plan
+## Preconditions
+- Pilot yacht is enabled for V2:
+```sql
+SELECT slug, booking_mode, booking_public_enabled, cal_event_type_id, booking_v2_live_from
+FROM yachts
+WHERE slug = 'made-for-waves';
+Expected:
 
-## Current State
+booking_mode = 'policy_v2'
 
-| Item | Status |
-|---|---|
-| Edge function code (3 functions + shared helper) | In repo, not yet deployed |
-| `supabase/config.toml` (verify_jwt=false) | Already configured |
-| Secrets | **None configured** |
-| Yachts | 2 exist: `made-for-waves` (has `cal_embed_url`), `ocean-breeze` (no `cal_embed_url`) -- both `legacy_embed`, no `cal_event_type_id` |
-| DB tables (`booking_rate_limits`, `booking_request_logs`, `booking_webhook_events`) | Already exist |
-| Frontend (`/book/:yachtSlug`, booking components) | Already exists |
+booking_public_enabled = true
 
----
+cal_event_type_id = 4718180
 
-## Step 1: Set Secrets
+Cal event type 4718180 is configured with:
 
-**Known-value secrets** (set directly, no user input needed):
-- `CAL_API_BASE_URL` = `https://api.cal.com`
-- `CAL_API_VERSION` = `2024-08-13`
-- `BOOKING_ALLOWED_ORIGINS` = `https://prestigeyachtsalliance.lovable.app,http://localhost:5173`
-- `BOOKING_RATE_LIMIT_MAX_REQUESTS` = `12`
-- `BOOKING_RATE_LIMIT_WINDOW_MINUTES` = `60`
+timezone America/Mazatlan
 
-**User-provided secrets** (will prompt):
-- `CAL_API_KEY` -- from Cal.com Settings > Developer > API Keys
-- `BOOKING_RATE_LIMIT_SALT` -- a long random string (e.g. output of `openssl rand -hex 32`)
+durations 240, 360, 480
 
-**Optional secrets** (will ask if desired):
-- `TURNSTILE_SECRET_KEY` -- only if enabling Cloudflare Turnstile captcha
-- `CAL_WEBHOOK_SECRET` -- only if Cal.com webhook signing is configured
+availability window 08 (lines 0-19, column 0)
 
-**Turnstile dependency note**: If `TURNSTILE_SECRET_KEY` is set server-side, the frontend needs `VITE_TURNSTILE_SITE_KEY` in the `.env` to render the widget. Since `.env` is auto-managed and no `VITE_TURNSTILE_SITE_KEY` is currently present, I will leave `TURNSTILE_SECRET_KEY` unset unless you confirm you want it and provide the site key too.
+time-slot interval set to 60 minutes
 
-## Step 2: Deploy Edge Functions
+published ON
 
-Deploy all three (shared `_shared/booking.ts` is bundled automatically):
-- `public-booking-availability`
-- `public-booking-create`
-- `public-booking-webhook`
+Edge function patch is deployed:
 
-## Step 3: Pre-flight Cal Readiness Check
+full-day block duration is 480 in server/shared policy
 
-**Blocker**: Neither yacht has `cal_event_type_id` set. Before enabling any yacht, you must provide:
-- The numeric Cal.com event type ID for the pilot yacht
-- Confirm in Cal.com that the event type has:
-  - Timezone = `America/Mazatlan`
-  - Schedule window covering 08:00-19:00
-  - Allowed durations include 240, 360, and 660 minutes
+availability checks use 240, 360, 480
 
-I will ask you for the `cal_event_type_id` and which yacht slug to pilot.
+Test Data Rules
+Use unique attendee emails for every create call (qa+timestamp+N@...) to avoid rate-limit false positives.
+Use half="pm" only for 4h tests.
+Use half=null for 5h tests.
+If month has no PM availability, test current month first, then next month.
+Step 1: Discover Test Dates
+Call availability for current month:
+http
 
-## Step 4: Enable Pilot Yacht
+GET /functions/v1/public-booking-availability?slug=made-for-waves&month=YYYY-MM
+If no valid PM date exists, repeat for next month.
+Pick:
+date_pm: first date with pm = "available"
+date_full: first different date with am = "available", pm = "available", fullOpen = true
+Step 2: Smoke Tests B–F
+Test B — Availability
+Request:
 
-Run SQL (after you provide the event type ID and slug):
+http
 
-```text
-UPDATE yachts
-SET cal_event_type_id = <ID>,
-    booking_v2_live_from = CURRENT_DATE,
-    booking_public_enabled = true,
-    booking_mode = 'policy_v2'
-WHERE slug = '<pilot-slug>';
-```
+GET /functions/v1/public-booking-availability?slug=made-for-waves&month=<selected-month>
+Pass:
 
-## Step 5: Smoke Tests
+200
+response includes days
+at least one date has pm = "available"
+Test C — Create 4h PM
+Request:
 
-Run all 6 tests via edge function curl:
+http
 
-A. `GET /public-booking-availability?slug=test-yacht&month=2026-02` -- expect 404
-B. `GET /public-booking-availability?slug=<pilot>&month=2026-02` -- expect 200 with days map
-C. `POST /public-booking-create` with `requestedHours=4, half=null` -- expect 400
-D. `POST /public-booking-create` with `requestedHours=4, half="am"` -- expect 200 or 409
-E. Repeat D -- expect 409
-F. `POST /public-booking-webhook` with test payload -- expect 200, verify DB insert
+POST /functions/v1/public-booking-create
+{
+  "slug": "made-for-waves",
+  "date": "<date_pm>",
+  "requestedHours": 4,
+  "half": "pm",
+  "attendee": { "name": "QA PM 1", "email": "qa+pm1@example.com" }
+}
+Pass:
 
-## Step 6: Rollback SQL (with cal_embed_url safeguard)
+200 with bookingUid and status
+Test D — Repeat Same 4h PM
+Same payload/date as Test C, new email.
+Pass:
 
-```text
--- Check cal_embed_url first
-SELECT slug, cal_embed_url FROM yachts WHERE slug = '<pilot-slug>';
+409 conflict (Selected date/segment is no longer available)
+Test E — Create 5h Full-Day
+Request:
 
--- If cal_embed_url IS NULL, set it before rollback:
--- UPDATE yachts SET cal_embed_url = '<legacy-cal-url>' WHERE slug = '<pilot-slug>';
+http
 
--- Then rollback:
+POST /functions/v1/public-booking-create
+{
+  "slug": "made-for-waves",
+  "date": "<date_full>",
+  "requestedHours": 5,
+  "half": null,
+  "attendee": { "name": "QA Full 1", "email": "qa+full1@example.com" }
+}
+Pass:
+
+200 with bookingUid and status
+Test E2 — Repeat Same Full-Day
+Same payload/date as Test E, new email.
+Pass:
+
+409 conflict
+Test F — Webhook Insert
+If CAL_WEBHOOK_SECRET is NOT set:
+
+http
+
+POST /functions/v1/public-booking-webhook
+{ "triggerEvent": "BOOKING_CREATED", "payload": { "uid": "qa-test-uid-1" } }
+Pass:
+
+200
+new row in booking_webhook_events with matching event_type + booking_uid
+If CAL_WEBHOOK_SECRET IS set:
+
+send valid signed payload with x-cal-signature-256
+expect 200 and row insert
+Step 3: Post-Test Availability Verification
+Re-run availability for the tested month and confirm:
+
+date_pm now shows pm = "booked"
+date_full now shows am = "booked" and pm = "booked"
+Step 4: Safe Rollback to Legacy
+sql
+
+-- 1) Verify legacy embed URL exists
+SELECT slug, cal_embed_url
+FROM yachts
+WHERE slug = 'made-for-waves';
+
+-- 2) If cal_embed_url is NULL, set it first:
+-- UPDATE yachts
+-- SET cal_embed_url = 'https://cal.com/prestigeyachts/3hr'
+-- WHERE slug = 'made-for-waves';
+
+-- 3) Rollback mode
 UPDATE yachts
 SET booking_mode = 'legacy_embed',
     booking_public_enabled = false
-WHERE slug = '<pilot-slug>';
-```
+WHERE slug = 'made-for-waves';
+Final Report Format
+Return one summary table with:
 
-For `made-for-waves`: `cal_embed_url` is already set (`https://cal.com/prestigeyachts/3hr`), safe to rollback directly.
-For `ocean-breeze`: `cal_embed_url` is NULL -- must set it before any rollback to legacy.
+Test name
+HTTP status
+Pass/Fail
+Key response details (requestId, bookingUid, error message if any)
+Include:
 
----
-
-## Decisions Needed From You Before Execution
-
-1. **CAL_API_KEY** value
-2. **BOOKING_RATE_LIMIT_SALT** value
-3. Which yacht slug to pilot (`made-for-waves` or `ocean-breeze`)?
-4. The numeric `cal_event_type_id` for that yacht from Cal.com
-5. Do you want `TURNSTILE_SECRET_KEY` and/or `CAL_WEBHOOK_SECRET` set now? (default: skip both)
+selected dates (date_pm, date_full)
+webhook insert proof row
+rollback status
 
