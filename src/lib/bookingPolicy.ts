@@ -8,7 +8,7 @@ export const BOOKING_WINDOWS = {
   full: { startHour: 8, endHour: 19 },
 } as const;
 
-export const BOOKING_MIN_HOURS = 4;
+export const BOOKING_MIN_HOURS = 3;
 export const BOOKING_MAX_HOURS = 8;
 
 export const PM_MAX_HOURS = 6;
@@ -22,4 +22,3 @@ export type DayAvailability = {
   pm: DayState;
   fullOpen: boolean;
 };
-

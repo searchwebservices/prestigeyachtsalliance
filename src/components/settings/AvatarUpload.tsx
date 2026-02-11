@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 
 const MAX_OUTPUT_PX = 256;
@@ -63,6 +64,7 @@ export default function AvatarUpload({
   onUploaded,
   disabled,
 }: AvatarUploadProps) {
+  const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const [imgSrc, setImgSrc] = useState("");
@@ -111,15 +113,26 @@ export default function AvatarUpload({
 
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
-      await supabase
+      const { error: profileUpdateError } = await supabase
         .from("profiles")
         .update({ avatar_url: publicUrl })
         .eq("id", userId);
+      if (profileUpdateError) throw profileUpdateError;
 
       onUploaded(publicUrl);
       setDialogOpen(false);
+      toast({
+        title: "Avatar updated",
+        description: "Your profile photo has been saved.",
+      });
     } catch (err) {
       console.error("Avatar upload failed:", err);
+      const message = err instanceof Error ? err.message : "Failed to upload avatar.";
+      toast({
+        variant: "destructive",
+        title: "Avatar upload failed",
+        description: message,
+      });
     } finally {
       setUploading(false);
     }
@@ -128,18 +141,30 @@ export default function AvatarUpload({
   const handleRemove = async () => {
     setRemoving(true);
     try {
-      await supabase.storage
+      const { error: removeError } = await supabase.storage
         .from("avatars")
         .remove([`${userId}/avatar.webp`]);
+      if (removeError) throw removeError;
 
-      await supabase
+      const { error: profileUpdateError } = await supabase
         .from("profiles")
         .update({ avatar_url: null })
         .eq("id", userId);
+      if (profileUpdateError) throw profileUpdateError;
 
       onUploaded(null);
+      toast({
+        title: "Avatar removed",
+        description: "Your profile photo has been removed.",
+      });
     } catch (err) {
       console.error("Avatar remove failed:", err);
+      const message = err instanceof Error ? err.message : "Failed to remove avatar.";
+      toast({
+        variant: "destructive",
+        title: "Avatar remove failed",
+        description: message,
+      });
     } finally {
       setRemoving(false);
     }
