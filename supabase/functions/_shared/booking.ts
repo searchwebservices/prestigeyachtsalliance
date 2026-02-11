@@ -388,6 +388,20 @@ const getSlotsMap = (payload: CalSlotsPayload): Record<string, SlotRecord[]> => 
   return Object.fromEntries(slotEntries) as Record<string, SlotRecord[]>;
 };
 
+/**
+ * Fetch available time-slots from Cal.com using a 60-minute probe duration,
+ * then derive AM / PM / Full-day availability from the returned hourly slots.
+ *
+ * Cal.com spaces slots by duration (non-overlapping), so querying with the
+ * actual block durations (240, 360, 480) produces very few start times
+ * and misses valid PM starts entirely. Using duration=60 gives us every
+ * available hour, from which we can reliably check window coverage.
+ *
+ * AM  (08-12, 240 min): requires slot at 08:00
+ * PM  (13-19, 360 min): requires slot at 13:00
+ * Full (08-16, 480 min): requires slots at 08:00 AND 13:00
+ *   (we check both anchors; Cal.com enforces the rest via its own schedule)
+ */
 const fetchSlotsOpenMap = async ({
   config,
   eventTypeId,
@@ -399,51 +413,53 @@ const fetchSlotsOpenMap = async ({
   monthRange: { startUtc: string; endUtc: string };
   timeZone: string;
 }) => {
-  const durations = [BLOCK_DURATIONS.HALF_AM, BLOCK_DURATIONS.HALF_PM, BLOCK_DURATIONS.FULL_DAY] as const;
-
   const openMap = new Map<string, OpenState>();
-  const slotPayloads = await Promise.all(
-    durations.map((duration) =>
-      calRequest<CalSlotsPayload>({
-        config,
-        method: 'GET',
-        path: '/v2/slots',
-        searchParams: {
-          eventTypeId,
-          start: monthRange.startUtc,
-          end: monthRange.endUtc,
-          timeZone,
-          duration,
-        },
-        apiVersion: DEFAULT_CAL_API_VERSION_SLOTS,
-      })
-    )
-  );
 
-  slotPayloads.forEach((payload, index) => {
-    const duration = durations[index];
-    const slotMap = getSlotsMap(payload);
-
-    Object.values(slotMap).forEach((slots) => {
-      for (const slot of slots) {
-        const iso = getSlotIso(slot);
-        if (!iso) continue;
-
-        const local = toTimeZoneParts(iso, timeZone);
-        const day = getOrCreate(openMap, local.dateKey, createOpenState);
-
-        if (duration === BLOCK_DURATIONS.HALF_AM && local.hour === 8 && local.minute === 0) {
-          day.am = true;
-        }
-        if (duration === BLOCK_DURATIONS.HALF_PM && local.hour === 13 && local.minute === 0) {
-          day.pm = true;
-        }
-        if (duration === BLOCK_DURATIONS.FULL_DAY && local.hour === 8 && local.minute === 0) {
-          day.full = true;
-        }
-      }
-    });
+  // Single query with duration=60 to get all available hourly slots.
+  const payload = await calRequest<CalSlotsPayload>({
+    config,
+    method: 'GET',
+    path: '/v2/slots',
+    searchParams: {
+      eventTypeId,
+      start: monthRange.startUtc,
+      end: monthRange.endUtc,
+      timeZone,
+      duration: 60,
+    },
+    apiVersion: DEFAULT_CAL_API_VERSION_SLOTS,
   });
+
+  const slotMap = getSlotsMap(payload);
+
+  // Build a set of available hours per date-key.
+  const hoursPerDay = new Map<string, Set<number>>();
+
+  for (const slots of Object.values(slotMap)) {
+    for (const slot of slots) {
+      const iso = getSlotIso(slot);
+      if (!iso) continue;
+
+      const local = toTimeZoneParts(iso, timeZone);
+      if (local.minute !== 0) continue; // only full-hour slots
+
+      const hours = getOrCreate(hoursPerDay, local.dateKey, () => new Set<number>());
+      hours.add(local.hour);
+    }
+  }
+
+  for (const [dateKey, hours] of hoursPerDay) {
+    const day = getOrCreate(openMap, dateKey, createOpenState);
+
+    // AM block starts at 08:00 (240 min → 08-12). Check anchor hour.
+    day.am = hours.has(8);
+
+    // PM block starts at 13:00 (360 min → 13-19). Check anchor hour.
+    day.pm = hours.has(13);
+
+    // Full-day block starts at 08:00 (480 min → 08-16). Both halves must be open.
+    day.full = hours.has(8) && hours.has(13);
+  }
 
   return openMap;
 };
