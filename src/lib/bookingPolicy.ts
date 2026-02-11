@@ -14,7 +14,7 @@ export const BOOKING_MAX_HOURS = 11;
 export const BLOCK_DURATIONS_MINUTES = {
   HALF_AM: 240,
   HALF_PM: 360,
-  FULL_DAY: 660,
+  FULL_DAY: 480,
 } as const;
 
 export type BookingMode = 'legacy_embed' | 'policy_v2';
