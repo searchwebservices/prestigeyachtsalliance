@@ -275,10 +275,12 @@ Deno.serve(async (req) => {
       config: getCalApiConfig(),
       method: 'POST',
       path: '/v2/bookings',
+      apiVersion: '2024-08-13',
       body: {
         start: bookingStartUtc,
         eventTypeId: yacht.cal_event_type_id,
-        lengthInMinutes: blockResolution.blockMinutes,
+        // lengthInMinutes temporarily removed: Cal.com API 2024-08-13 rejects it
+        // unless event type has "multiple durations" explicitly enabled
         attendee: {
           name: attendeeName,
           email: attendeeEmail,
