@@ -862,32 +862,54 @@ ${yacht.owner_notes || 'No notes available.'}`;
                     </p>
                   </div>
 
-                  {yacht.booking_public_enabled && (
-                    <Button variant="outline" onClick={() => window.open(publicBookingUrl, '_blank')}>
-                      Open Public Booking Page
-                      <ExternalLink className="ml-2 h-4 w-4" />
-                    </Button>
+                  {yacht.booking_public_enabled ? (
+                    <div className="space-y-3">
+                      <div
+                        className="w-full rounded-lg overflow-hidden bg-muted border border-border/60"
+                        style={{ touchAction: 'pan-y' }}
+                      >
+                        <iframe
+                          src={publicBookingUrl}
+                          className="w-full h-[1120px] md:h-[980px]"
+                          style={{ touchAction: 'pan-y', pointerEvents: 'auto' }}
+                          frameBorder="0"
+                          scrolling="yes"
+                          title={`${yacht.name} Internal Booking Calendar`}
+                        />
+                      </div>
+
+                      <Button variant="outline" onClick={() => window.open(publicBookingUrl, '_blank')}>
+                        Open Internal Booking Page
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        Enable public booking URL to render the internal booking calendar for this yacht.
+                      </p>
+                    </div>
                   )}
                 </div>
-              ) : yacht.cal_embed_url ? (
-                <div className="w-full rounded-lg overflow-hidden bg-muted" style={{ touchAction: 'pan-y' }}>
-                  <iframe
-                    src={yacht.cal_embed_url}
-                    className="w-full h-[900px] md:h-[700px]"
-                    style={{ touchAction: 'pan-y', pointerEvents: 'auto' }}
-                    frameBorder="0"
-                    scrolling="no"
-                    title={`${yacht.name} Availability Calendar`}
-                  />
-                </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-8 md:py-12 text-muted-foreground">
-                  <Calendar className="w-10 h-10 md:w-12 md:h-12 mb-4 opacity-50" />
-                  <p className="text-sm md:text-base">No calendar configured yet.</p>
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+                    <p className="text-sm font-medium">Legacy Embed Mode</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      External Cal.com iframe embedding has been replaced with the internal booking UI.
+                      Switch this yacht to <span className="font-medium">Policy V2</span> to use the integrated
+                      calendar here.
+                    </p>
+                    {yacht.cal_embed_url && (
+                      <p className="text-xs text-muted-foreground mt-2 break-all">
+                        Stored legacy URL: {yacht.cal_embed_url}
+                      </p>
+                    )}
+                  </div>
                   {isAdmin && !isEditing && (
-                    <Button variant="outline" className="mt-4 h-9" onClick={handleEdit}>
+                    <Button variant="outline" className="h-9" onClick={handleEdit}>
                       <Pencil className="w-4 h-4 mr-2" />
-                      Add Calendar URL
+                      Switch to Policy V2
                     </Button>
                   )}
                 </div>
