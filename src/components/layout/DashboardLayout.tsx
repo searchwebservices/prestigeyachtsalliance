@@ -2,7 +2,8 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Anchor, LogOut, User, Users, Menu } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { Anchor, LogOut, Users, Menu } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -165,37 +166,41 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             )}
           </nav>
 
-          {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 md:h-10 px-2 md:px-3 gap-2 md:gap-3">
-                <Avatar className="h-7 w-7 md:h-8 md:w-8 border border-border">
-                  <AvatarFallback className="bg-secondary text-secondary-foreground text-xs md:text-sm font-medium">
-                    {getInitials()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="hidden md:block text-sm font-medium text-foreground max-w-[150px] truncate">
-                  {displayName}
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium text-foreground">{displayName}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleSignOut}
-                className="text-destructive focus:text-destructive cursor-pointer"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1 md:gap-2">
+            <ThemeToggle />
+
+            {/* User Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 md:h-10 px-2 md:px-3 gap-2 md:gap-3">
+                  <Avatar className="h-7 w-7 md:h-8 md:w-8 border border-border">
+                    <AvatarFallback className="bg-secondary text-secondary-foreground text-xs md:text-sm font-medium">
+                      {getInitials()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="hidden md:block text-sm font-medium text-foreground max-w-[150px] truncate">
+                    {displayName}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium text-foreground">{displayName}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
 

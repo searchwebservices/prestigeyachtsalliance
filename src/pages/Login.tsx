@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -7,17 +7,27 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useTheme } from "next-themes";
 
 const BG_DESKTOP = "https://i.imgur.com/NcnnKgl.jpeg";
 const BG_MOBILE = "https://i.imgur.com/fULRq0K.jpeg";
+const BG_DARK = "https://i.imgur.com/IyexzYT.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { signIn } = useAuth();
+  const { resolvedTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const isDark = mounted && resolvedTheme === "dark";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,17 +64,32 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center relative">
-      {/* Background images - mobile/tablet vs desktop */}
-      <img
-        src={BG_MOBILE}
-        alt="Luxury yacht background"
-        className="absolute inset-0 w-full h-full object-cover md:hidden"
-      />
-      <img
-        src={BG_DESKTOP}
-        alt="Luxury yacht background"
-        className="absolute inset-0 w-full h-full object-cover hidden md:block"
-      />
+      {/* Background image by theme */}
+      {isDark ? (
+        <img
+          src={BG_DARK}
+          alt="Luxury yacht background"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : (
+        <>
+          <img
+            src={BG_MOBILE}
+            alt="Luxury yacht background"
+            className="absolute inset-0 w-full h-full object-cover md:hidden"
+          />
+          <img
+            src={BG_DESKTOP}
+            alt="Luxury yacht background"
+            className="absolute inset-0 w-full h-full object-cover hidden md:block"
+          />
+        </>
+      )}
+      <div className={`absolute inset-0 ${isDark ? "bg-black/40" : "bg-black/25"}`} />
+
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle buttonClassName="h-10 w-10 rounded-full border border-border/60 bg-card/70 backdrop-blur" />
+      </div>
 
       {/* Login modal - centered on all devices */}
       <Card className="relative z-10 w-full max-w-md mx-4 border-border/50 shadow-2xl animate-fade-in bg-card">
