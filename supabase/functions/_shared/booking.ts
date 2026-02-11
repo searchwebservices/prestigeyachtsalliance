@@ -3,7 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 export const BOOKING_POLICY_VERSION = 'v2';
 export const BOOKING_TIMEZONE = 'America/Mazatlan';
 export const MIN_HOURS = 3;
-export const MAX_HOURS = 11;
+export const MAX_HOURS = 8;
+export const PM_MAX_HOURS = 6;
 
 export type DayState = 'available' | 'booked' | 'closed';
 export type BookingHalf = 'am' | 'pm';
@@ -627,23 +628,19 @@ export const resolveBookingBlock = ({
     return { ok: false, message: `requestedHours must be an integer between ${MIN_HOURS} and ${MAX_HOURS}` };
   }
 
-  if (requestedHours === 3 || requestedHours === 4) {
-    if (half !== 'am' && half !== 'pm') {
-      return { ok: false, message: 'half is required for 3-4 hour bookings' };
-    }
-
-    if (half === 'am') {
-      return { ok: true, blockScope: 'HALF_AM', blockMinutes: BLOCK_DURATIONS.HALF_AM, startHour: 8 };
-    }
-
-    return { ok: true, blockScope: 'HALF_PM', blockMinutes: BLOCK_DURATIONS.HALF_PM, startHour: 13 };
+  if (half !== 'am' && half !== 'pm') {
+    return { ok: false, message: 'half (am or pm) is required for all bookings' };
   }
 
-  if (half !== null) {
-    return { ok: false, message: 'half must be null for bookings of 5+ hours' };
+  if (half === 'pm' && requestedHours > PM_MAX_HOURS) {
+    return { ok: false, message: `PM bookings support up to ${PM_MAX_HOURS} hours` };
   }
 
-  return { ok: true, blockScope: 'FULL_DAY', blockMinutes: BLOCK_DURATIONS.FULL_DAY, startHour: 8 };
+  const startHour = half === 'am' ? 8 : 13;
+  const blockMinutes = requestedHours * 60;
+  const blockScope: BlockScope = half === 'am' ? 'HALF_AM' : 'HALF_PM';
+
+  return { ok: true, blockScope, blockMinutes, startHour };
 };
 
 export const isSelectionAvailable = ({
@@ -655,13 +652,9 @@ export const isSelectionAvailable = ({
   requestedHours: number;
   half: BookingHalf | null;
 }) => {
-  if (requestedHours === 3 || requestedHours === 4) {
-    if (half === 'am') return day.am === 'available';
-    if (half === 'pm') return day.pm === 'available';
-    return false;
-  }
-
-  return day.am === 'available' && day.pm === 'available' && day.fullOpen;
+  if (half === 'am') return day.am === 'available';
+  if (half === 'pm') return day.pm === 'available';
+  return false;
 };
 
 export const sha256Hex = async (value: string) => {
