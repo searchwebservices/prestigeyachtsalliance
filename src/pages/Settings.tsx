@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Settings2, UserCircle2, Palette, History, RefreshCw, Save, CheckCircle2, AlertCircle } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
+import AvatarUpload from "@/components/settings/AvatarUpload";
 
 type ThemePreference = "light" | "dark" | "system";
 type ProfileSettings = {
@@ -308,6 +309,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<ProfileSettings | null>(null);
   const [fullName, setFullName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [themePreference, setThemePreference] = useState<ThemePreference>("system");
   const [languagePreference, setLanguagePreference] = useState<AppLanguage>(language);
@@ -329,7 +331,7 @@ export default function Settings() {
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("id,email,full_name,phone_number,preferred_theme,preferred_language")
+      .select("id,email,full_name,phone_number,preferred_theme,preferred_language,avatar_url")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -361,6 +363,7 @@ export default function Settings() {
     setProfile(nextProfile);
     setFullName(nextProfile.full_name || "");
     setPhoneNumber(nextProfile.phone_number || "");
+    setAvatarUrl(data.avatar_url);
     setThemePreference(nextProfile.preferred_theme);
     setLanguagePreference(nextProfile.preferred_language);
     setLoadingProfile(false);
@@ -576,6 +579,25 @@ export default function Settings() {
                 <CardDescription>{copy.profileDescription}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {user && (
+                  <div className="space-y-2">
+                    <Label>Avatar</Label>
+                    <AvatarUpload
+                      userId={user.id}
+                      currentUrl={avatarUrl}
+                      fallbackInitials={
+                        (fullName || profile?.email || "U")
+                          .split(" ")
+                          .map((w) => w[0])
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase()
+                      }
+                      onUploaded={setAvatarUrl}
+                      disabled={loadingProfile}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="settings-email">{copy.email}</Label>
                   <Input
