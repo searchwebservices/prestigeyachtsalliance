@@ -24,19 +24,40 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-const yachtSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100),
-  vessel_type: z.string().min(1, 'Vessel type is required').max(100),
-  capacity: z.coerce.number().min(1, 'Capacity must be at least 1'),
-  is_flagship: z.boolean().default(false),
-  team_description: z.string().optional(),
-  sales_description: z.string().optional(),
-  public_price: z.coerce.number().optional(),
-  commission_amount: z.coerce.number().optional(),
-  owner_notes: z.string().optional(),
-  cal_embed_url: z.string().url().optional().or(z.literal('')),
-});
+const yachtSchema = z
+  .object({
+    name: z.string().min(1, 'Name is required').max(100),
+    vessel_type: z.string().min(1, 'Vessel type is required').max(100),
+    capacity: z.coerce.number().min(1, 'Capacity must be at least 1'),
+    is_flagship: z.boolean().default(false),
+    team_description: z.string().optional(),
+    sales_description: z.string().optional(),
+    public_price: z.coerce.number().optional(),
+    commission_amount: z.coerce.number().optional(),
+    owner_notes: z.string().optional(),
+    cal_embed_url: z.string().url().optional().or(z.literal('')),
+    booking_mode: z.enum(['legacy_embed', 'policy_v2']).default('legacy_embed'),
+    cal_event_type_id: z.coerce.number().int().positive().optional(),
+    booking_public_enabled: z.boolean().default(false),
+    booking_v2_live_from: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.booking_mode === 'policy_v2' && !data.cal_event_type_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cal_event_type_id'],
+        message: 'Cal Event Type ID is required in policy_v2 mode',
+      });
+    }
+  });
 
 type YachtFormData = z.infer<typeof yachtSchema>;
 
@@ -61,8 +82,13 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
       commission_amount: undefined,
       owner_notes: '',
       cal_embed_url: '',
+      booking_mode: 'legacy_embed',
+      cal_event_type_id: undefined,
+      booking_public_enabled: false,
+      booking_v2_live_from: '',
     },
   });
+  const bookingMode = form.watch('booking_mode');
 
   const generateSlug = (name: string): string => {
     return name
@@ -87,7 +113,12 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
         public_price: data.public_price || null,
         commission_amount: data.commission_amount || null,
         owner_notes: data.owner_notes || null,
-        cal_embed_url: data.cal_embed_url || null,
+        cal_embed_url: data.booking_mode === 'legacy_embed' ? data.cal_embed_url || null : null,
+        cal_event_type_id: data.booking_mode === 'policy_v2' ? data.cal_event_type_id || null : null,
+        booking_mode: data.booking_mode,
+        booking_public_enabled: data.booking_mode === 'policy_v2' ? data.booking_public_enabled : false,
+        booking_v2_live_from:
+          data.booking_mode === 'policy_v2' ? data.booking_v2_live_from || null : null,
       });
 
       if (error) throw error;
@@ -251,17 +282,92 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
 
             <FormField
               control={form.control}
-              name="cal_embed_url"
+              name="booking_mode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cal.com Embed URL</FormLabel>
+                  <FormLabel>Booking Mode</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://cal.com/..." {...field} />
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select booking mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="legacy_embed">Legacy Embed</SelectItem>
+                        <SelectItem value="policy_v2">Policy V2 (Self-hosted API)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {bookingMode === 'legacy_embed' ? (
+              <FormField
+                control={form.control}
+                name="cal_embed_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cal.com Embed URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://cal.com/..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <>
+                <FormField
+                  control={form.control}
+                  name="cal_event_type_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cal Event Type ID *</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={1}
+                          placeholder="12345"
+                          value={field.value ?? ''}
+                          onChange={(event) => field.onChange(event.target.value)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="booking_v2_live_from"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Go Live Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="booking_public_enabled"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center gap-2 space-y-0">
+                      <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                      <FormLabel className="text-sm font-normal cursor-pointer">
+                        Enable public booking URL
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
 
             <FormField
               control={form.control}

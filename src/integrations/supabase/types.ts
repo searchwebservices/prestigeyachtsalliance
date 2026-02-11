@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_rate_limits: {
+        Row: {
+          created_at: string
+          email_hash: string
+          id: string
+          ip_hash: string
+          request_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_hash: string
+          id?: string
+          ip_hash: string
+          request_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_hash?: string
+          id?: string
+          ip_hash?: string
+          request_id?: string | null
+        }
+        Relationships: []
+      }
+      booking_request_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          endpoint: string
+          id: string
+          request_id: string
+          status_code: number
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          endpoint: string
+          id?: string
+          request_id: string
+          status_code: number
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          endpoint?: string
+          id?: string
+          request_id?: string
+          status_code?: number
+        }
+        Relationships: []
+      }
+      booking_webhook_events: {
+        Row: {
+          booking_uid: string | null
+          event_type: string | null
+          id: string
+          payload: Json
+          received_at: string
+        }
+        Insert: {
+          booking_uid?: string | null
+          event_type?: string | null
+          id?: string
+          payload: Json
+          received_at?: string
+        }
+        Update: {
+          booking_uid?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json
+          received_at?: string
+        }
+        Relationships: []
+      }
       exchange_rates: {
         Row: {
           base_currency: string
@@ -153,6 +228,10 @@ export type Database = {
       }
       yachts: {
         Row: {
+          booking_mode: string
+          booking_public_enabled: boolean
+          booking_v2_live_from: string | null
+          cal_event_type_id: number | null
           cal_embed_url: string | null
           capacity: number
           commission_amount: number | null
@@ -170,6 +249,10 @@ export type Database = {
           vessel_type: string
         }
         Insert: {
+          booking_mode?: string
+          booking_public_enabled?: boolean
+          booking_v2_live_from?: string | null
+          cal_event_type_id?: number | null
           cal_embed_url?: string | null
           capacity?: number
           commission_amount?: number | null
@@ -187,6 +270,10 @@ export type Database = {
           vessel_type: string
         }
         Update: {
+          booking_mode?: string
+          booking_public_enabled?: boolean
+          booking_v2_live_from?: string | null
+          cal_event_type_id?: number | null
           cal_embed_url?: string | null
           capacity?: number
           commission_amount?: number | null

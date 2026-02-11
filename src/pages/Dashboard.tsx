@@ -22,6 +22,10 @@ interface Yacht {
   commission_amount: number | null;
   owner_notes: string | null;
   cal_embed_url: string | null;
+  cal_event_type_id: number | null;
+  booking_mode: string;
+  booking_public_enabled: boolean;
+  booking_v2_live_from: string | null;
   is_flagship: boolean | null;
   display_order: number | null;
 }

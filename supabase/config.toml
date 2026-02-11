@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.fetch-exchange-rate]
 verify_jwt = false
+
+[functions.public-booking-availability]
+verify_jwt = false
+
+[functions.public-booking-create]
+verify_jwt = false
+
+[functions.public-booking-webhook]
+verify_jwt = false

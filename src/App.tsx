@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import TeamManagement from "./pages/TeamManagement";
 import Deposit from "./pages/Deposit";
+import PublicBooking from "./pages/PublicBooking";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route path="/book/:yachtSlug" element={<PublicBooking />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

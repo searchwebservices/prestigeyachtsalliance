@@ -7,6 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Anchor,
   Users,
@@ -42,6 +50,10 @@ interface Yacht {
   commission_amount: number | null;
   owner_notes: string | null;
   cal_embed_url: string | null;
+  cal_event_type_id: number | null;
+  booking_mode: string;
+  booking_public_enabled: boolean;
+  booking_v2_live_from: string | null;
   is_flagship: boolean | null;
 }
 
@@ -68,6 +80,8 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<Partial<Yacht>>({});
+  const publicBookingUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}/book/${yacht.slug}` : `/book/${yacht.slug}`;
 
   const handleCopy = async (text: string, context: string) => {
     await navigator.clipboard.writeText(text);
@@ -200,6 +214,10 @@ ${yacht.owner_notes || 'No notes available.'}`;
       commission_amount: yacht.commission_amount,
       owner_notes: yacht.owner_notes,
       cal_embed_url: yacht.cal_embed_url,
+      cal_event_type_id: yacht.cal_event_type_id,
+      booking_mode: yacht.booking_mode,
+      booking_public_enabled: yacht.booking_public_enabled,
+      booking_v2_live_from: yacht.booking_v2_live_from,
     });
     setIsEditing(true);
   };
@@ -210,11 +228,29 @@ ${yacht.owner_notes || 'No notes available.'}`;
   };
 
   const handleSave = async () => {
+    if (editData.booking_mode === 'policy_v2' && !editData.cal_event_type_id) {
+      toast({
+        variant: 'destructive',
+        title: 'Cal Event Type ID required',
+        description: 'Set a Cal Event Type ID before enabling policy_v2 mode.',
+      });
+      return;
+    }
+
     setIsSaving(true);
+
+    const normalizedData: Partial<Yacht> = { ...editData };
+    if (normalizedData.booking_mode === 'legacy_embed') {
+      normalizedData.booking_public_enabled = false;
+      normalizedData.cal_event_type_id = null;
+      normalizedData.booking_v2_live_from = null;
+    } else if (normalizedData.booking_mode === 'policy_v2') {
+      normalizedData.cal_embed_url = null;
+    }
     
     const { error } = await supabase
       .from('yachts')
-      .update(editData)
+      .update(normalizedData)
       .eq('id', yacht.id);
 
     if (error) {
@@ -717,18 +753,123 @@ ${yacht.owner_notes || 'No notes available.'}`;
               </CardTitle>
               <CardDescription className="text-xs md:text-sm">View and manage availability</CardDescription>
               {isEditing && (
-                <div className="mt-4 space-y-2">
-                  <Label>Cal.com Embed URL</Label>
-                  <Input
-                    value={editData.cal_embed_url || ''}
-                    onChange={(e) => setEditData({ ...editData, cal_embed_url: e.target.value })}
-                    placeholder="https://cal.com/your-calendar"
-                  />
+                <div className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label>Booking Mode</Label>
+                    <Select
+                      value={editData.booking_mode || 'legacy_embed'}
+                      onValueChange={(value: 'legacy_embed' | 'policy_v2') =>
+                        setEditData({ ...editData, booking_mode: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select booking mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="legacy_embed">Legacy Embed</SelectItem>
+                        <SelectItem value="policy_v2">Policy V2 (Self-hosted API)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {(editData.booking_mode || yacht.booking_mode) === 'legacy_embed' ? (
+                    <div className="space-y-2">
+                      <Label>Cal.com Embed URL</Label>
+                      <Input
+                        value={editData.cal_embed_url || ''}
+                        onChange={(e) => setEditData({ ...editData, cal_embed_url: e.target.value })}
+                        placeholder="https://cal.com/your-calendar"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Cal Event Type ID</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={editData.cal_event_type_id || ''}
+                          onChange={(e) =>
+                            setEditData({
+                              ...editData,
+                              cal_event_type_id: Number(e.target.value) || null,
+                            })
+                          }
+                          placeholder="12345"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>V2 Go Live Date</Label>
+                        <Input
+                          type="date"
+                          value={editData.booking_v2_live_from || ''}
+                          onChange={(e) =>
+                            setEditData({
+                              ...editData,
+                              booking_v2_live_from: e.target.value || null,
+                            })
+                          }
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={Boolean(editData.booking_public_enabled)}
+                          onCheckedChange={(checked) =>
+                            setEditData({
+                              ...editData,
+                              booking_public_enabled: Boolean(checked),
+                            })
+                          }
+                        />
+                        <Label className="text-sm font-normal">Enable public booking URL</Label>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </CardHeader>
             <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
-              {yacht.cal_embed_url ? (
+              {yacht.booking_mode === 'policy_v2' ? (
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-2">
+                    <p className="text-sm">
+                      <span className="font-medium">Mode:</span> Policy V2
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium">Cal Event Type ID:</span>{' '}
+                      {yacht.cal_event_type_id || 'Not configured'}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium">Public URL:</span>{' '}
+                      {yacht.booking_public_enabled ? (
+                        <a
+                          href={publicBookingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          {publicBookingUrl}
+                        </a>
+                      ) : (
+                        'Disabled'
+                      )}
+                    </p>
+                    <p className="text-sm">
+                      <span className="font-medium">Go Live Date:</span>{' '}
+                      {yacht.booking_v2_live_from || 'Not set'}
+                    </p>
+                  </div>
+
+                  {yacht.booking_public_enabled && (
+                    <Button variant="outline" onClick={() => window.open(publicBookingUrl, '_blank')}>
+                      Open Public Booking Page
+                      <ExternalLink className="ml-2 h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ) : yacht.cal_embed_url ? (
                 <div className="w-full rounded-lg overflow-hidden bg-muted" style={{ touchAction: 'pan-y' }}>
                   <iframe
                     src={yacht.cal_embed_url}
