@@ -239,10 +239,13 @@ export const getMonthUtcRange = (monthKey: string, timeZone: string) => {
   };
 };
 
-const makeCalHeaders = (_config: CalApiConfig) => {
+const DEFAULT_CAL_API_VERSION_BOOKINGS = '2024-08-13';
+const DEFAULT_CAL_API_VERSION_SLOTS = '2024-09-04';
+
+const makeCalHeaders = (_config: CalApiConfig, apiVersion?: string) => {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${_config.apiKey}`,
-    'cal-api-version': Deno.env.get('CAL_API_VERSION') || DEFAULT_CAL_API_VERSION,
+    'cal-api-version': apiVersion || Deno.env.get('CAL_API_VERSION') || DEFAULT_CAL_API_VERSION_BOOKINGS,
     'Content-Type': 'application/json',
   };
 
@@ -263,12 +266,14 @@ export const calRequest = async <T>({
   path,
   searchParams,
   body,
+  apiVersion,
 }: {
   config: CalApiConfig;
   method: 'GET' | 'POST';
   path: string;
   searchParams?: Record<string, string | number | boolean | null | undefined>;
   body?: unknown;
+  apiVersion?: string;
 }) => {
   const url = new URL(`${config.baseUrl}${path}`);
   if (searchParams) {
@@ -280,7 +285,7 @@ export const calRequest = async <T>({
 
   const response = await fetch(url, {
     method,
-    headers: makeCalHeaders(config),
+    headers: makeCalHeaders(config, apiVersion),
     body: body ? JSON.stringify(body) : undefined,
   });
 
@@ -410,6 +415,7 @@ const fetchSlotsOpenMap = async ({
           timeZone,
           duration,
         },
+        apiVersion: DEFAULT_CAL_API_VERSION_SLOTS,
       })
     )
   );
@@ -471,6 +477,7 @@ const fetchBookings = async ({
           skip,
           sortStart: 'asc',
         },
+        apiVersion: DEFAULT_CAL_API_VERSION_BOOKINGS,
       });
 
       const pageData = payload.data;
