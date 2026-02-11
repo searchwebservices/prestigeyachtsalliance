@@ -26,7 +26,8 @@ import {
   Save,
   X,
   Upload,
-  Download
+  Download,
+  FileText
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -42,6 +43,7 @@ interface TeamUser {
   page_loads: number;
   copy_events: number;
   yacht_views: number;
+  trips_booked: number;
 }
 
 interface ActivityItem {
@@ -199,6 +201,7 @@ Last Active: ${user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'MM
 Page Loads: ${user.page_loads}
 Copy Events: ${user.copy_events}
 Yacht Views: ${user.yacht_views}
+Trips Booked: ${user.trips_booked}
 Total Activity: ${user.activity_count}`;
 
     await navigator.clipboard.writeText(text);
@@ -251,6 +254,8 @@ Total Activity: ${user.activity_count}`;
         return <Copy className="w-3.5 h-3.5" />;
       case 'yacht_view':
         return <Activity className="w-3.5 h-3.5" />;
+      case 'trip_booked':
+        return <FileText className="w-3.5 h-3.5" />;
       default:
         return <Clock className="w-3.5 h-3.5" />;
     }
@@ -264,9 +269,23 @@ Total Activity: ${user.activity_count}`;
         return `Copied ${eventData.context || 'text'}`;
       case 'yacht_view':
         return `Viewed ${eventData.yacht_name || 'yacht'}`;
+      case 'trip_booked':
+        return `Booked ${eventData.yacht_name || 'trip'} for ${eventData.customer_name || 'client'}`;
       default:
         return eventType;
     }
+  };
+
+  const getEventSecondaryLabel = (eventType: string, eventData: Record<string, unknown>) => {
+    if (eventType !== 'trip_booked') return null;
+
+    const bookingId =
+      (typeof eventData.booking_transaction_id === 'string' && eventData.booking_transaction_id) ||
+      (typeof eventData.booking_uid === 'string' && eventData.booking_uid) ||
+      'N/A';
+    const tripDate = typeof eventData.trip_date === 'string' ? eventData.trip_date : 'Unknown date';
+    const tripTime = typeof eventData.trip_time_range === 'string' ? eventData.trip_time_range : 'Unknown time';
+    return `Txn ${bookingId} • ${tripDate} • ${tripTime}`;
   };
 
   return (
@@ -389,6 +408,13 @@ Total Activity: ${user.activity_count}`;
             </div>
             <div className="bg-secondary/50 rounded-lg p-3">
               <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                <FileText className="w-3.5 h-3.5" />
+                Trips Booked
+              </div>
+              <p className="text-2xl font-semibold text-foreground">{user.trips_booked}</p>
+            </div>
+            <div className="bg-secondary/50 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                 <Calendar className="w-3.5 h-3.5" />
                 Member Since
               </div>
@@ -430,24 +456,28 @@ Total Activity: ${user.activity_count}`;
             ) : (
               <ScrollArea className="h-48">
                 <div className="space-y-2">
-                  {activities.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className="flex items-center gap-3 p-2 rounded-md bg-secondary/30"
-                    >
-                      <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
-                        {getEventIcon(activity.event_type)}
+                  {activities.map((activity) => {
+                    const secondaryLabel = getEventSecondaryLabel(activity.event_type, activity.event_data);
+                    return (
+                      <div
+                        key={activity.id}
+                        className="flex items-center gap-3 p-2 rounded-md bg-secondary/30"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
+                          {getEventIcon(activity.event_type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground truncate">
+                            {getEventLabel(activity.event_type, activity.event_data)}
+                          </p>
+                          {secondaryLabel && <p className="text-xs text-muted-foreground truncate">{secondaryLabel}</p>}
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground truncate">
-                          {getEventLabel(activity.event_type, activity.event_data)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
             )}

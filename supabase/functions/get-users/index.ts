@@ -89,22 +89,38 @@ Deno.serve(async (req) => {
     }
 
     // Aggregate activity counts per user
-    const activityMap: Record<string, { total: number; page_loads: number; copy_events: number; yacht_views: number }> = {};
+    const activityMap: Record<
+      string,
+      { total: number; page_loads: number; copy_events: number; yacht_views: number; trips_booked: number }
+    > = {};
     activityCounts?.forEach((activity) => {
       if (!activityMap[activity.user_id]) {
-        activityMap[activity.user_id] = { total: 0, page_loads: 0, copy_events: 0, yacht_views: 0 };
+        activityMap[activity.user_id] = {
+          total: 0,
+          page_loads: 0,
+          copy_events: 0,
+          yacht_views: 0,
+          trips_booked: 0,
+        };
       }
       activityMap[activity.user_id].total++;
       if (activity.event_type === "page_load") activityMap[activity.user_id].page_loads++;
       if (activity.event_type === "copy_text") activityMap[activity.user_id].copy_events++;
       if (activity.event_type === "yacht_view") activityMap[activity.user_id].yacht_views++;
+      if (activity.event_type === "trip_booked") activityMap[activity.user_id].trips_booked++;
     });
 
     // Combine data
     const enrichedUsers = users.map((authUser) => {
       const profile = profiles?.find((p) => p.id === authUser.id);
       const role = roles?.find((r) => r.user_id === authUser.id);
-      const activity = activityMap[authUser.id] || { total: 0, page_loads: 0, copy_events: 0, yacht_views: 0 };
+      const activity = activityMap[authUser.id] || {
+        total: 0,
+        page_loads: 0,
+        copy_events: 0,
+        yacht_views: 0,
+        trips_booked: 0,
+      };
 
       return {
         id: authUser.id,
@@ -118,6 +134,7 @@ Deno.serve(async (req) => {
         page_loads: activity.page_loads,
         copy_events: activity.copy_events,
         yacht_views: activity.yacht_views,
+        trips_booked: activity.trips_booked,
       };
     });
 

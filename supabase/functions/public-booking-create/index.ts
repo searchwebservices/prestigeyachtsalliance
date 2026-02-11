@@ -305,6 +305,7 @@ Deno.serve(async (req) => {
       (typeof booking.id === 'number' ? String(booking.id) : null);
     const bookingStatus =
       (typeof booking.status === 'string' && booking.status) || 'accepted';
+    const transactionId = bookingUid || requestId;
 
     await logBookingRequest({
       supabase,
@@ -317,6 +318,7 @@ Deno.serve(async (req) => {
         requestedHours,
         half,
         blockScope: blockResolution.blockScope,
+        transactionId,
         bookingUid,
         bookingStatus,
       },
@@ -324,6 +326,7 @@ Deno.serve(async (req) => {
 
     return json(req, 200, {
       requestId,
+      transactionId,
       bookingUid,
       status: bookingStatus,
     });

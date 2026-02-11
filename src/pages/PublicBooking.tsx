@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useActivityTracker } from '@/hooks/useActivityTracker';
 import HalfDayCalendar from '@/components/booking/HalfDayCalendar';
 import BookingForm from '@/components/booking/BookingForm';
 import Legend from '@/components/booking/Legend';
 import { BOOKING_MIN_HOURS, DayAvailability } from '@/lib/bookingPolicy';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ClipboardCopy, MessageCircle, Phone } from 'lucide-react';
 
 type AvailabilityResponse = {
   requestId: string;
@@ -37,18 +38,73 @@ type AvailabilityResponse = {
 type CreateBookingResponse = {
   requestId: string;
   bookingUid: string | null;
+  transactionId?: string;
   status: string;
+};
+
+type BookingConfirmationDetails = {
+  submittedAt: string;
+  transactionId: string;
+  bookingUid: string | null;
+  status: string;
+  yachtName: string;
+  yachtSlug: string;
+  date: string;
+  requestedHours: number;
+  half: 'am' | 'pm' | null;
+  timeRange: string;
+  timezone: string;
+  attendeeName: string;
+  attendeeEmail: string;
+  attendeePhone: string | null;
+  notes: string;
 };
 
 const apiBase = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+const RICARDO_PHONE_E164 = '526243147806';
+const RICARDO_PHONE_DISPLAY = '+52 624 314 7806';
 
 const monthKeyFromDate = (date: Date) => format(date, 'yyyy-MM');
+
+const formatHour = (hour24: number) => {
+  const normalized = ((hour24 % 24) + 24) % 24;
+  const suffix = normalized >= 12 ? 'PM' : 'AM';
+  const hour12 = normalized % 12 === 0 ? 12 : normalized % 12;
+  return `${hour12}:00 ${suffix}`;
+};
+
+const getTimeRangeLabel = (requestedHours: number, half: 'am' | 'pm' | null) => {
+  if (!half) return 'Not selected';
+  const startHour = half === 'am' ? 8 : 13;
+  const endHour = startHour + requestedHours;
+  return `${formatHour(startHour)} - ${formatHour(endHour)}`;
+};
+
+const buildTripReportText = (details: BookingConfirmationDetails) =>
+  [
+    'Prestige Yachts Cabo - Booking Confirmation',
+    `Transaction ID: ${details.transactionId}`,
+    `Booking UID: ${details.bookingUid || 'N/A'}`,
+    `Status: ${details.status}`,
+    `Boat: ${details.yachtName} (${details.yachtSlug})`,
+    `Date: ${details.date}`,
+    `Time: ${details.timeRange} (${details.timezone})`,
+    `Requested Hours: ${details.requestedHours}`,
+    `Segment: ${details.half ? details.half.toUpperCase() : 'N/A'}`,
+    `Client Name: ${details.attendeeName}`,
+    `Client Email: ${details.attendeeEmail}`,
+    `Client Phone: ${details.attendeePhone || 'N/A'}`,
+    `Notes: ${details.notes || 'N/A'}`,
+    `Submitted At: ${details.submittedAt}`,
+    `Ricardo Contact: ${RICARDO_PHONE_DISPLAY}`,
+  ].join('\n');
 
 export default function PublicBooking() {
   const { yachtSlug } = useParams<{ yachtSlug: string }>();
   const { toast } = useToast();
+  const { trackEvent } = useActivityTracker();
 
   const [monthDate, setMonthDate] = useState(() => new Date());
   const [requestedHours, setRequestedHours] = useState(BOOKING_MIN_HOURS);
@@ -58,7 +114,7 @@ export default function PublicBooking() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastBooking, setLastBooking] = useState<CreateBookingResponse | null>(null);
+  const [lastBooking, setLastBooking] = useState<BookingConfirmationDetails | null>(null);
 
   const monthKey = useMemo(() => monthKeyFromDate(monthDate), [monthDate]);
 
@@ -138,12 +194,46 @@ export default function PublicBooking() {
         throw new Error(responsePayload.error || 'Booking request failed');
       }
 
-      setLastBooking(responsePayload);
+      const transactionId = responsePayload.transactionId || responsePayload.bookingUid || responsePayload.requestId;
+      const confirmationDetails: BookingConfirmationDetails = {
+        submittedAt: new Date().toISOString(),
+        transactionId,
+        bookingUid: responsePayload.bookingUid,
+        status: responsePayload.status,
+        yachtName: availability?.yacht.name || yachtSlug,
+        yachtSlug,
+        date: selectedDate,
+        requestedHours: payload.requestedHours,
+        half: selectedHalf,
+        timeRange: getTimeRangeLabel(payload.requestedHours, selectedHalf),
+        timezone: availability?.timezone || 'America/Mazatlan',
+        attendeeName: payload.attendee.name,
+        attendeeEmail: payload.attendee.email,
+        attendeePhone: payload.attendee.phoneNumber || null,
+        notes: payload.notes,
+      };
+
+      setLastBooking(confirmationDetails);
+      void trackEvent('trip_booked', {
+        booking_transaction_id: confirmationDetails.transactionId,
+        booking_uid: confirmationDetails.bookingUid || '',
+        booking_status: confirmationDetails.status,
+        yacht_name: confirmationDetails.yachtName,
+        yacht_slug: confirmationDetails.yachtSlug,
+        trip_date: confirmationDetails.date,
+        trip_time_range: confirmationDetails.timeRange,
+        trip_timezone: confirmationDetails.timezone,
+        requested_hours: confirmationDetails.requestedHours,
+        segment: confirmationDetails.half || '',
+        customer_name: confirmationDetails.attendeeName,
+        customer_email: confirmationDetails.attendeeEmail,
+        customer_phone: confirmationDetails.attendeePhone || '',
+        notes: confirmationDetails.notes || '',
+      });
+
       toast({
         title: 'Booking submitted',
-        description: responsePayload.bookingUid
-          ? `Booking UID: ${responsePayload.bookingUid}`
-          : 'Your booking request was submitted.',
+        description: `Transaction ID: ${transactionId}`,
       });
 
       await loadAvailability();
@@ -169,6 +259,15 @@ export default function PublicBooking() {
     setMonthDate((current) => addMonths(current, 1));
     setSelectedDate(null);
     setSelectedHalf(null);
+  };
+
+  const handleCopyReport = async () => {
+    if (!lastBooking) return;
+    await navigator.clipboard.writeText(buildTripReportText(lastBooking));
+    toast({
+      title: 'Report copied',
+      description: 'Booking summary copied for Ricardo.',
+    });
   };
 
   if (loading) {
@@ -225,13 +324,84 @@ export default function PublicBooking() {
         <Legend />
 
         {lastBooking ? (
-          <Alert>
-            <AlertTitle>Latest Submission</AlertTitle>
-            <AlertDescription>
-              Status: {lastBooking.status}
-              {lastBooking.bookingUid ? ` • UID: ${lastBooking.bookingUid}` : ''}
-            </AlertDescription>
-          </Alert>
+          <Card className="border-emerald-500/40 bg-emerald-500/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                Booking Confirmed - Action Required
+              </CardTitle>
+              <CardDescription>
+                Confirm payment and booking details directly with Ricardo via WhatsApp or call.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <AlertTitle>Contact Ricardo now</AlertTitle>
+                <AlertDescription>
+                  WhatsApp or call <span className="font-medium">{RICARDO_PHONE_DISPLAY}</span> to finalize payment and
+                  operational details.
+                </AlertDescription>
+              </Alert>
+
+              <div className="grid gap-3 text-sm md:grid-cols-2">
+                <div className="rounded-md border border-border/60 bg-background/60 p-3">
+                  <p>
+                    <span className="font-medium">Transaction ID:</span> {lastBooking.transactionId}
+                  </p>
+                  <p>
+                    <span className="font-medium">Booking UID:</span> {lastBooking.bookingUid || 'N/A'}
+                  </p>
+                  <p>
+                    <span className="font-medium">Status:</span> {lastBooking.status}
+                  </p>
+                  <p>
+                    <span className="font-medium">Submitted:</span>{' '}
+                    {format(new Date(lastBooking.submittedAt), 'MMM d, yyyy h:mm a')}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border/60 bg-background/60 p-3">
+                  <p>
+                    <span className="font-medium">Boat:</span> {lastBooking.yachtName}
+                  </p>
+                  <p>
+                    <span className="font-medium">Date:</span> {lastBooking.date}
+                  </p>
+                  <p>
+                    <span className="font-medium">Time:</span> {lastBooking.timeRange}
+                  </p>
+                  <p>
+                    <span className="font-medium">Client:</span> {lastBooking.attendeeName} ({lastBooking.attendeeEmail}
+                    )
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm">
+                  <a
+                    href={`https://wa.me/${RICARDO_PHONE_E164}?text=${encodeURIComponent(
+                      `Hi Ricardo, booking confirmed.\nTransaction ID: ${lastBooking.transactionId}\nBoat: ${lastBooking.yachtName}\nDate: ${lastBooking.date}\nTime: ${lastBooking.timeRange}\nClient: ${lastBooking.attendeeName} (${lastBooking.attendeeEmail})`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    WhatsApp Ricardo
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href={`tel:+${RICARDO_PHONE_E164}`}>
+                    <Phone className="mr-2 h-4 w-4" />
+                    Call Ricardo
+                  </a>
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleCopyReport}>
+                  <ClipboardCopy className="mr-2 h-4 w-4" />
+                  Copy Report
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : null}
 
         <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">

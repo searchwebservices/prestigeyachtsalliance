@@ -42,6 +42,7 @@ interface TeamUser {
   page_loads: number;
   copy_events: number;
   yacht_views: number;
+  trips_booked: number;
 }
 
 export default function TeamManagement() {
@@ -106,12 +107,13 @@ export default function TeamManagement() {
   };
 
   const handleCopyTable = async () => {
-    const headers = ['Name', 'Email', 'Role', 'Last Active', 'Activity Count'];
+    const headers = ['Name', 'Email', 'Role', 'Last Active', 'Trips Booked', 'Activity Count'];
     const rows = users.map(user => [
       user.full_name || '—',
       user.email,
       user.role,
       user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'MMM d, yyyy HH:mm') : 'Never',
+      user.trips_booked.toString(),
       user.activity_count.toString()
     ]);
     
@@ -124,7 +126,18 @@ export default function TeamManagement() {
   };
 
   const handleExportCSV = () => {
-    const headers = ['Name', 'Email', 'Role', 'Member Since', 'Last Active', 'Page Loads', 'Copy Events', 'Yacht Views', 'Total Activity'];
+    const headers = [
+      'Name',
+      'Email',
+      'Role',
+      'Member Since',
+      'Last Active',
+      'Page Loads',
+      'Copy Events',
+      'Yacht Views',
+      'Trips Booked',
+      'Total Activity',
+    ];
     const rows = users.map(user => [
       user.full_name || '',
       user.email,
@@ -134,6 +147,7 @@ export default function TeamManagement() {
       user.page_loads.toString(),
       user.copy_events.toString(),
       user.yacht_views.toString(),
+      user.trips_booked.toString(),
       user.activity_count.toString()
     ]);
     
@@ -229,13 +243,14 @@ export default function TeamManagement() {
                     <TableHead>Member</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Last Active</TableHead>
+                    <TableHead className="text-right">Trips</TableHead>
                     <TableHead className="text-right">Activity</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         No team members found
                       </TableCell>
                     </TableRow>
@@ -285,6 +300,11 @@ export default function TeamManagement() {
                           {user.last_sign_in_at
                             ? formatDistanceToNow(new Date(user.last_sign_in_at), { addSuffix: true })
                             : 'Never'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={user.trips_booked > 0 ? 'default' : 'secondary'}>
+                            {user.trips_booked}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1 text-muted-foreground">
@@ -341,6 +361,9 @@ export default function TeamManagement() {
                             {user.last_sign_in_at
                               ? formatDistanceToNow(new Date(user.last_sign_in_at), { addSuffix: true })
                               : 'Never active'}
+                          </span>
+                          <span>
+                            Trips: <span className="font-medium text-foreground">{user.trips_booked}</span>
                           </span>
                           <span className="flex items-center gap-1">
                             <Activity className="w-3 h-3" />
