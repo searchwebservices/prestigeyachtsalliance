@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export const BOOKING_POLICY_VERSION = 'v2';
 export const BOOKING_TIMEZONE = 'America/Mazatlan';
-export const MIN_HOURS = 3;
+export const MIN_HOURS = 4;
 export const MAX_HOURS = 8;
 export const PM_MAX_HOURS = 6;
 
