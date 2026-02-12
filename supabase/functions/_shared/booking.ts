@@ -391,10 +391,10 @@ export const getValidStartsForDay = (openHours: number[], requestedHours: number
 /**
  * Derive shift classification from start/end hours.
  */
-export const deriveShiftFit = (startHour: number, endHour: number): 'morning' | 'afternoon' | 'full_span' => {
+export const deriveShiftFit = (startHour: number, endHour: number): 'morning' | 'afternoon' | 'flexible' => {
   if (endHour <= MORNING_END) return 'morning';
   if (startHour >= AFTERNOON_START) return 'afternoon';
-  return 'full_span';
+  return 'flexible';
 };
 
 /**
@@ -403,7 +403,7 @@ export const deriveShiftFit = (startHour: number, endHour: number): 'morning' | 
 export const deriveSegment = (shiftFit: string): string => {
   if (shiftFit === 'morning') return 'am';
   if (shiftFit === 'afternoon') return 'pm';
-  return 'full';
+  return 'flexible';
 };
 
 /**
@@ -739,11 +739,23 @@ export const buildAvailabilityForMonth = async ({
     }
 
     // Derive am/pm/fullOpen for hybrid calendar highlighting
+    // Use booked-hour evidence per window for accurate booked indicators
     const hasAnyMorningStarts = DURATIONS.some(d => validStartsByDuration[String(d)].some(s => s < MORNING_END));
     const hasAnyAfternoonStarts = DURATIONS.some(d => validStartsByDuration[String(d)].some(s => s >= AFTERNOON_START));
 
-    const amState: DayState = hasAnyMorningStarts ? 'available' : (blockedHours.size > 0 ? 'booked' : 'closed');
-    const pmState: DayState = hasAnyAfternoonStarts ? 'available' : (blockedHours.size > 0 ? 'booked' : 'closed');
+    // Check if any morning hours (6-12) are booked
+    let hasMorningBooking = false;
+    for (let h = MORNING_START; h < MORNING_END; h++) {
+      if (blockedHours.has(h)) { hasMorningBooking = true; break; }
+    }
+    // Check if any afternoon hours (15-17) are booked
+    let hasAfternoonBooking = false;
+    for (let h = AFTERNOON_START; h < AFTERNOON_END; h++) {
+      if (blockedHours.has(h)) { hasAfternoonBooking = true; break; }
+    }
+
+    const amState: DayState = hasAnyMorningStarts ? 'available' : (hasMorningBooking ? 'booked' : 'closed');
+    const pmState: DayState = hasAnyAfternoonStarts ? 'available' : (hasAfternoonBooking ? 'booked' : 'closed');
     const fullOpen = hasAnyMorningStarts && hasAnyAfternoonStarts;
 
     days[dateKey] = {
