@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -13,7 +13,8 @@ import Dashboard from "./pages/Dashboard";
 import TeamManagement from "./pages/TeamManagement";
 import Deposit from "./pages/Deposit";
 import PublicBooking from "./pages/PublicBooking";
-import Book from "./pages/Calendar";
+import Book from "./pages/Book";
+import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -59,7 +60,7 @@ const App = () => (
                   path="/calendar"
                   element={
                     <ProtectedRoute>
-                      <Navigate to="/book" replace />
+                      <Calendar />
                     </ProtectedRoute>
                   }
                 />

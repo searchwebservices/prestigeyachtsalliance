@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import { Anchor, CalendarDays, LogOut, Users, Menu, Settings as SettingsIcon } from 'lucide-react';
+import { Anchor, CalendarDays, Calendar as CalendarIcon, LogOut, Users, Menu, Settings as SettingsIcon } from 'lucide-react';
 import { uiText } from '@/lib/uiText';
 import {
   DropdownMenu,
@@ -115,6 +115,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   </Button>
                   {isAdmin && (
                     <Button
+                      variant={location.pathname === '/calendar' ? 'secondary' : 'ghost'}
+                      className="justify-start h-11"
+                      onClick={() => handleNavigation('/calendar')}
+                    >
+                      <CalendarIcon className="w-4 h-4 mr-3" />
+                      {copy.calendar}
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button
                       variant={location.pathname === '/team' ? 'secondary' : 'ghost'}
                       className="justify-start h-11"
                       onClick={() => handleNavigation('/team')}
@@ -182,6 +192,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <CalendarDays className="w-4 h-4 mr-2" />
               {copy.book}
             </Button>
+            {isAdmin && (
+              <Button
+                variant={location.pathname === '/calendar' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => navigate('/calendar')}
+              >
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                {copy.calendar}
+              </Button>
+            )}
             {isAdmin && (
               <Button
                 variant={location.pathname === '/team' ? 'secondary' : 'ghost'}
