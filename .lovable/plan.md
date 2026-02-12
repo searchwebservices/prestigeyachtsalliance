@@ -1,217 +1,92 @@
-# Booking V2: Half-Based Duration Patch (Revised)
+
+
+# Booking Guardrails V3 -- Backend Migration Plan
 
 ## Summary
-Replace the old “full-day block” model with a half-selected duration model.  
-Every booking (3–8h) must choose `AM` or `PM`, and we send exact duration to Cal:
 
-- `startHour = 08:00` for AM, `13:00` for PM
-- `lengthInMinutes = requestedHours * 60`
+Replace the V2 half-day (AM/PM) booking engine with V3 hour-granular policy across three edge-function files. No frontend changes.
 
-This ensures Cal booking cards + attendee emails reflect the selected start half and exact requested hours.
+## V3 Policy Rules
 
----
+```text
+Operating window:  06:00 - 18:00  (America/Mazatlan)
+Morning window:    06:00 - 13:00
+Buffer zone:       13:00 - 15:00  (blocks 3-4h starts)
+Afternoon window:  15:00 - 18:00
 
-## Manual Blocker (must complete first)
-Cal event type `4718180` must have **Multiple Durations** enabled with:
+Duration  Allowed starts
+--------  --------------
+3h        06:00-10:00 (end <= 13:00)  OR  15:00 (end = 18:00)
+4h        06:00-09:00 (end <= 13:00)
+5h        06:00-13:00 (end <= 18:00)
+6h        06:00-12:00
+7h        06:00-11:00
+8h        06:00-10:00
+```
 
-- `240, 300, 360, 420, 480`
+## Changes by File
 
-Without this, Cal may reject `lengthInMinutes` in create-booking payloads.
+### 1. `supabase/functions/_shared/booking.ts`
 
----
+- Change `BOOKING_POLICY_VERSION` to `'v3'`.
+- Replace window constants: operating 6-18, morning 6-13, buffer 13-15, afternoon 15-18.
+- Remove `BLOCK_DURATIONS`, `BlockScope`, `PM_MAX_HOURS` exports (no longer needed).
+- Add new exported helpers:
+  - `isStartAllowedByPolicy(requestedHours, startHour)` -- implements the table above.
+  - `getValidStartsForDay(openHours: number[], requestedHours: number)` -- filters openHours through policy + contiguous-block check.
+  - `deriveShiftFit(startHour, endHour)` -- returns `'morning'|'afternoon'|'full_span'`.
+  - `resolveStartHourForCreate({ startHour?, half?, requestedHours })` -- uses `startHour` if present; falls back `am->6, pm->15`; validates via policy.
+  - `isStartSelectionAvailable(day, requestedHours, startHour)` -- checks startHour exists in `day.validStartsByDuration[requestedHours]`.
+- Rewrite `buildAvailabilityForMonth`:
+  - Keep slot-fetching with `duration=60`.
+  - Change booking blocking: extract exact booked intervals (start/end) and mark individual hours as occupied instead of synthetic AM/PM blocking.
+  - Per day, compute `openHours: number[]` (hours in 6-18 that have a Cal slot and are not blocked).
+  - Compute `validStartsByDuration` for durations 3-8 using `getValidStartsForDay`.
+  - Keep `am`, `pm`, `fullOpen` for hybrid calendar highlighting (derived from openHours/validStarts).
+- Remove old `resolveBookingBlock` and `isSelectionAvailable`; keep legacy type exports if needed for compatibility.
 
-## Rules (Final)
+### 2. `supabase/functions/public-booking-availability/index.ts`
 
-## Hours / Half Rules
-- Allowed requested hours: `3..8`
-- `half` is required for all requests (`am | pm`)
-- Start times:
-  - `am` -> `08:00`
-  - `pm` -> `13:00`
+- Update response `constraints` object to V3 shape:
+  ```json
+  {
+    "minHours": 3,
+    "maxHours": 8,
+    "timeStepMinutes": 60,
+    "operatingWindow": "06:00-18:00",
+    "morningWindow": "06:00-13:00",
+    "bufferWindow": "13:00-15:00",
+    "afternoonWindow": "15:00-18:00"
+  }
+  ```
+- Each `days[date]` will include `am`, `pm`, `fullOpen`, `openHours`, and `validStartsByDuration`.
 
-## Duration Fit Rules (critical)
-- AM supports up to `8h` (08:00–16:00)
-- PM supports up to `6h` (13:00–19:00)
-- Server must reject invalid PM duration:
-  - if `half="pm"` and `requestedHours > 6` -> `400`
+### 3. `supabase/functions/public-booking-create/index.ts`
 
----
+- Accept `startHour` (number) as primary input alongside existing `half`.
+- Use `resolveStartHourForCreate` to resolve final start hour (with legacy half fallback).
+- Validate with `isStartAllowedByPolicy(requestedHours, startHour)`.
+- Server-side re-check via `isStartSelectionAvailable` against freshly-built availability.
+- Build Cal.com payload: `start = zonedDateTimeToUtcIso(date, startHour, 0, tz)`, `lengthInMinutes = requestedHours * 60`.
+- Metadata: `policy_version: 'v3'`, `start_hour`, `end_hour`, `requested_hours`, `shift_fit`, `segment` (derived), `selected_half` (derived or from fallback).
+- Conflict error message changed to "Selected date/time is no longer available".
 
-## Code Changes
+### 4. CORS / Environment
 
-## 1) Frontend Policy Constants
-**File:** `src/lib/bookingPolicy.ts`
+- Verify `BOOKING_ALLOWED_ORIGINS` secret includes `http://localhost:5173,http://127.0.0.1:4173,http://localhost:4173` alongside production origins. Will check current value and update if needed.
 
-- Set `BOOKING_MAX_HOURS = 8`
-- Keep `BOOKING_MIN_HOURS = 3`
-- Keep timezone constant `America/Mazatlan`
-- Remove/stop using full-day specific helpers/constants in UI logic
+### 5. Deployment and Validation
 
----
+- Deploy `public-booking-availability` and `public-booking-create`.
+- Run validation calls:
+  - `GET /public-booking-availability?slug=...&month=2026-02` -- confirm `constraints.timeStepMinutes` and `validStartsByDuration["3"]` in response.
+  - `POST /public-booking-create` with valid `startHour=6, requestedHours=3` -- expect pass-through to Cal.com.
+  - `POST` with invalid combo (e.g. `startHour=15, requestedHours=4`) -- expect 400.
 
-## 2) Booking Form
-**File:** `src/components/booking/BookingForm.tsx`
+## Technical Notes
 
-- Half is required for all hour selections.
-- Update help text:
-  - AM: 3–8h supported
-  - PM: 3–6h supported
-- Keep hours dropdown `3..8`.
-- Add client-side validation:
-  - block submit if `half` missing
-  - block submit if `half="pm"` and `requestedHours > 6`
-- Keep existing name/email required behavior.
-
----
-
-## 3) Calendar UI
-**File:** `src/components/booking/HalfDayCalendar.tsx`
-
-- Remove full-day selection UI/button entirely.
-- Always allow AM/PM selection when respective half is `available`.
-- Keep visual state model (`available`, `booked`, `closed`).
-
----
-
-## 4) Public Booking Page
-**File:** `src/pages/PublicBooking.tsx`
-
-- Remove any logic that clears/ignores half for higher hours.
-- Always send `half` in payload:
-  - `half: 'am' | 'pm'`
-- Keep existing endpoint contracts unchanged.
-
----
-
-## 5) Shared Server Policy
-**File:** `supabase/functions/_shared/booking.ts`
-
-### Validation (`resolveBookingBlock`)
-- Require:
-  - integer `requestedHours` in `3..8`
-  - `half` must be `am|pm`
-  - reject PM > 6h
-- Compute:
-  - `startHour = half === 'am' ? 8 : 13`
-  - `blockMinutes = requestedHours * 60`
-  - `blockScope = half === 'am' ? 'HALF_AM' : 'HALF_PM'`
-
-### Selection Availability (`isSelectionAvailable`)
-- Do not only check half color state.
-- Must validate **duration-fit availability** for selected half and requested duration.
-
-### Availability Resolver (`buildAvailabilityForMonth` / slot logic)
-- Keep `duration=60` slot probe approach.
-- Add/create helper to validate exact start + duration fit:
-  - AM booking needs contiguous hourly slots from 08:00 through `(08 + requestedHours - 1)`
-  - PM booking needs contiguous hourly slots from 13:00 through `(13 + requestedHours - 1)`
-- Keep `fullOpen` field for backward compatibility, but it is no longer required by create flow.
-
-### Booking Overlay (critical overlap fix)
-When converting existing bookings into day-half booked states:
-- Use actual booking `start/end` overlap against windows:
-  - AM window: `08:00-12:00`
-  - PM window: `13:00-19:00`
-- Mark a half `booked` if booking interval overlaps that window.
-- Do not rely only on metadata `block_scope` for long bookings.
-
----
-
-## 6) Booking Create Function
-**File:** `supabase/functions/public-booking-create/index.ts`
-
-- Re-enable:
-  - `lengthInMinutes: blockResolution.blockMinutes`
-- Keep:
-  - start from `zonedDateTimeToUtcIso(date, startHour, 0, BOOKING_TIMEZONE)`
-- Add explicit guard:
-  - `requestedHours > 8` -> `400`
-  - `half='pm' && requestedHours>6` -> `400`
-- Keep rate limit, Turnstile (optional), and conflict handling.
-- Keep metadata:
-  - include `requested_hours`
-  - include `block_scope` (`HALF_AM`/`HALF_PM`)
-
----
-
-## 7) API Version Handling
-- Keep endpoint-specific Cal API versions that currently work in your environment.
-- Ensure create-booking path uses working version for `/v2/bookings`.
-- Ensure slots path uses working version for `/v2/slots`.
-
----
-
-## Acceptance Criteria
-
-## Booking Creation
-- 4h AM -> start `08:00`, `lengthInMinutes=240`, scope `HALF_AM`
-- 4h PM -> start `13:00`, `lengthInMinutes=240`, scope `HALF_PM`
-- 5h AM -> start `08:00`, `lengthInMinutes=300`, scope `HALF_AM`
-- 5h PM -> start `13:00`, `lengthInMinutes=300`, scope `HALF_PM`
-- 7h PM -> rejected `400` (exceeds PM window)
-
-## Conflict Behavior
-- Repeating same date/half with overlapping duration returns `409`.
-
-## Availability Rendering
-- Day-half states update correctly after bookings:
-  - PM booking marks PM as booked
-  - Long AM booking that overlaps PM marks both halves as booked when applicable
-
-## Legacy Regression
-- `legacy_embed` yachts remain unaffected.
-
----
-
-## Smoke Test Plan (Post-Deploy)
-
-1. **Availability load**
-- `GET /public-booking-availability?slug=made-for-waves&month=<target>`
-- Expect `200` and PM availability on future dates.
-
-2. **4h PM create**
-- Expect `200`, verify Cal shows `13:00` start and 4h duration.
-
-3. **Duplicate 4h PM**
-- Expect `409`.
-
-4. **5h AM create**
-- Expect `200`, verify Cal shows `08:00` start and 5h duration.
-
-5. **Invalid PM duration (7h PM)**
-- Expect `400`.
-
-6. **Post-booking availability re-check**
-- Verify affected halves are marked booked based on overlap.
-
-7. **Webhook insert**
-- `POST /public-booking-webhook` test payload
-- Expect `200` + row in `booking_webhook_events`.
-
----
-
-## Pilot Rollback (safe)
-
-```sql
--- Verify legacy embed URL exists
-SELECT slug, cal_embed_url
-FROM yachts
-WHERE slug = 'made-for-waves';
-
--- If cal_embed_url is NULL, set it first:
--- UPDATE yachts
--- SET cal_embed_url = 'https://cal.com/prestigeyachts/3hr'
--- WHERE slug = 'made-for-waves';
-
--- Roll back to legacy mode
-UPDATE yachts
-SET booking_mode = 'legacy_embed',
-    booking_public_enabled = false
-WHERE slug = 'made-for-waves';
-Deliverables
-Code patch committed
-Functions deployed
-Smoke test report with status codes + booking UID/times
-Confirmation that Cal booking cards/emails now show correct selected half + duration
-Rollback status documented
+- The `fetchSlotsOpenMap` function will be refactored to return `Map<string, number[]>` (raw open hours per day) instead of `Map<string, OpenState>`.
+- Booking blocking will parse each booking's start/end into local hours and remove those hours from the open set, rather than using synthetic AM/PM flags.
+- All existing helper functions (Cal API, CORS, rate limiting, Turnstile, webhook signature) remain unchanged.
+- `bookingPolicy.ts` (frontend) is NOT modified per the request -- backend only.
 
