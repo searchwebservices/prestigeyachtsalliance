@@ -4,6 +4,8 @@ export const uiText: Record<
   AppLanguage,
   {
     yachts: string;
+    book: string;
+    calendar: string;
     team: string;
     settings: string;
     signOut: string;
@@ -25,6 +27,8 @@ export const uiText: Record<
 > = {
   en: {
     yachts: "Yachts",
+    book: "Book",
+    calendar: "Calendar",
     team: "Team",
     settings: "Settings",
     signOut: "Sign out",
@@ -45,6 +49,8 @@ export const uiText: Record<
   },
   es: {
     yachts: "Yates",
+    book: "Reservar",
+    calendar: "Calendario",
     team: "Equipo",
     settings: "Configuración",
     signOut: "Cerrar sesión",
@@ -64,4 +70,3 @@ export const uiText: Record<
     profile: "Perfil",
   },
 };
-

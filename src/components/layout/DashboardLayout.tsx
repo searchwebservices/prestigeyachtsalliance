@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import { Anchor, LogOut, Users, Menu, Settings as SettingsIcon } from 'lucide-react';
+import { Anchor, CalendarDays, LogOut, Users, Menu, Settings as SettingsIcon } from 'lucide-react';
 import { uiText } from '@/lib/uiText';
 import {
   DropdownMenu,
@@ -105,6 +105,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     <Anchor className="w-4 h-4 mr-3" />
                     {copy.yachts}
                   </Button>
+                  <Button
+                    variant={location.pathname === '/book' ? 'secondary' : 'ghost'}
+                    className="justify-start h-11"
+                    onClick={() => handleNavigation('/book')}
+                  >
+                    <CalendarDays className="w-4 h-4 mr-3" />
+                    {copy.book}
+                  </Button>
                   {isAdmin && (
                     <Button
                       variant={location.pathname === '/team' ? 'secondary' : 'ghost'}
@@ -165,6 +173,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <Anchor className="w-4 h-4 mr-2" />
               {copy.yachts}
+            </Button>
+            <Button
+              variant={location.pathname === '/book' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => navigate('/book')}
+            >
+              <CalendarDays className="w-4 h-4 mr-2" />
+              {copy.book}
             </Button>
             {isAdmin && (
               <Button

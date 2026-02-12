@@ -7,21 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Anchor,
+  ArrowRight,
   Users,
   DollarSign,
   FileText,
   Image as ImageIcon,
-  Calendar,
   MessageSquare,
   Pencil,
   Save,
@@ -32,6 +24,7 @@ import {
   ExternalLink,
   Shield,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import ImageManager from './ImageManager';
@@ -74,14 +67,21 @@ interface YachtDetailProps {
 }
 
 export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onCopy }: YachtDetailProps) {
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { toast } = useToast();
   const { rate: mxnRate, fetchedAt: rateFetchedAt } = useExchangeRate();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<Partial<Yacht>>({});
-  const publicBookingUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}/book/${yacht.slug}` : `/book/${yacht.slug}`;
+  const isInternallyBookable = yacht.booking_mode === 'policy_v2' && Boolean(yacht.cal_event_type_id);
+  const internalBookPath = `/book?yacht=${encodeURIComponent(yacht.slug)}&step=day`;
+  const bookDisabledReason =
+    yacht.booking_mode !== 'policy_v2'
+      ? 'This yacht must be on Policy V2 before booking is enabled.'
+      : !yacht.cal_event_type_id
+        ? 'This yacht needs a Cal Event Type ID before booking is enabled.'
+        : null;
 
   const handleCopy = async (text: string, context: string) => {
     await navigator.clipboard.writeText(text);
@@ -384,12 +384,21 @@ ${yacht.owner_notes || 'No notes available.'}`;
             <ImageIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
             <span>Images</span>
           </TabsTrigger>
-          <TabsTrigger value="availability" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
-            <Calendar className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            <span className="hidden sm:inline">Availability</span>
-            <span className="sm:hidden">Cal</span>
-          </TabsTrigger>
+          <div className="shrink-0 pl-1">
+            <Button
+              size="sm"
+              className="h-8 px-3 md:h-9 md:px-4"
+              onClick={() => navigate(internalBookPath)}
+              disabled={!isInternallyBookable}
+            >
+              Book
+              <ArrowRight className="ml-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+            </Button>
+          </div>
         </TabsList>
+        {!isInternallyBookable && bookDisabledReason && (
+          <p className="px-1 pt-2 text-xs text-muted-foreground">{bookDisabledReason}</p>
+        )}
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="mt-4 md:mt-6">
@@ -743,180 +752,6 @@ ${yacht.owner_notes || 'No notes available.'}`;
           )}
         </TabsContent>
 
-        {/* Availability Tab */}
-        <TabsContent value="availability" className="mt-4 md:mt-6">
-          <Card className="border-border/50">
-            <CardHeader className="p-4 md:p-6">
-              <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                Booking Calendar
-              </CardTitle>
-              <CardDescription className="text-xs md:text-sm">View and manage availability</CardDescription>
-              {isEditing && (
-                <div className="mt-4 space-y-4">
-                  <div className="space-y-2">
-                    <Label>Booking Mode</Label>
-                    <Select
-                      value={editData.booking_mode || 'legacy_embed'}
-                      onValueChange={(value: 'legacy_embed' | 'policy_v2') =>
-                        setEditData({ ...editData, booking_mode: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select booking mode" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="legacy_embed">Legacy Embed</SelectItem>
-                        <SelectItem value="policy_v2">Policy V2 (Self-hosted API)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {(editData.booking_mode || yacht.booking_mode) === 'legacy_embed' ? (
-                    <div className="space-y-2">
-                      <Label>Cal.com Embed URL</Label>
-                      <Input
-                        value={editData.cal_embed_url || ''}
-                        onChange={(e) => setEditData({ ...editData, cal_embed_url: e.target.value })}
-                        placeholder="https://cal.com/your-calendar"
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        <Label>Cal Event Type ID</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={editData.cal_event_type_id || ''}
-                          onChange={(e) =>
-                            setEditData({
-                              ...editData,
-                              cal_event_type_id: Number(e.target.value) || null,
-                            })
-                          }
-                          placeholder="12345"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>V2 Go Live Date</Label>
-                        <Input
-                          type="date"
-                          value={editData.booking_v2_live_from || ''}
-                          onChange={(e) =>
-                            setEditData({
-                              ...editData,
-                              booking_v2_live_from: e.target.value || null,
-                            })
-                          }
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          checked={Boolean(editData.booking_public_enabled)}
-                          onCheckedChange={(checked) =>
-                            setEditData({
-                              ...editData,
-                              booking_public_enabled: Boolean(checked),
-                            })
-                          }
-                        />
-                        <Label className="text-sm font-normal">Enable public booking URL</Label>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </CardHeader>
-            <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
-              {yacht.booking_mode === 'policy_v2' ? (
-                <div className="space-y-4">
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-2">
-                    <p className="text-sm">
-                      <span className="font-medium">Mode:</span> Policy V2
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium">Cal Event Type ID:</span>{' '}
-                      {yacht.cal_event_type_id || 'Not configured'}
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium">Public URL:</span>{' '}
-                      {yacht.booking_public_enabled ? (
-                        <a
-                          href={publicBookingUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          {publicBookingUrl}
-                        </a>
-                      ) : (
-                        'Disabled'
-                      )}
-                    </p>
-                    <p className="text-sm">
-                      <span className="font-medium">Go Live Date:</span>{' '}
-                      {yacht.booking_v2_live_from || 'Not set'}
-                    </p>
-                  </div>
-
-                  {yacht.booking_public_enabled ? (
-                    <div className="space-y-3">
-                      <div
-                        className="w-full rounded-lg overflow-hidden bg-muted border border-border/60"
-                        style={{ touchAction: 'pan-y' }}
-                      >
-                        <iframe
-                          src={publicBookingUrl}
-                          className="w-full h-[1120px] md:h-[980px]"
-                          style={{ touchAction: 'pan-y', pointerEvents: 'auto' }}
-                          frameBorder="0"
-                          scrolling="yes"
-                          title={`${yacht.name} Internal Booking Calendar`}
-                        />
-                      </div>
-
-                      <Button variant="outline" onClick={() => window.open(publicBookingUrl, '_blank')}>
-                        Open Internal Booking Page
-                        <ExternalLink className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-                      <p className="text-sm text-muted-foreground">
-                        Enable public booking URL to render the internal booking calendar for this yacht.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-                    <p className="text-sm font-medium">Legacy Embed Mode</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      External Cal.com iframe embedding has been replaced with the internal booking UI.
-                      Switch this yacht to <span className="font-medium">Policy V2</span> to use the integrated
-                      calendar here.
-                    </p>
-                    {yacht.cal_embed_url && (
-                      <p className="text-xs text-muted-foreground mt-2 break-all">
-                        Stored legacy URL: {yacht.cal_embed_url}
-                      </p>
-                    )}
-                  </div>
-                  {isAdmin && !isEditing && (
-                    <Button variant="outline" className="h-9" onClick={handleEdit}>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Switch to Policy V2
-                    </Button>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
