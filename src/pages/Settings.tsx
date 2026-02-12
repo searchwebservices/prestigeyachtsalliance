@@ -224,6 +224,7 @@ const asNumber = (value: unknown) => {
 const normalizeSegment = (value: unknown) => {
   const segment = asString(value).toLowerCase();
   if (segment === "am" || segment === "pm") return segment.toUpperCase();
+  if (segment === "flexible") return "FLEXIBLE";
   return "";
 };
 

@@ -10,7 +10,14 @@ import { useActivityTracker } from '@/hooks/useActivityTracker';
 import HalfDayCalendar from '@/components/booking/HalfDayCalendar';
 import BookingForm from '@/components/booking/BookingForm';
 import Legend from '@/components/booking/Legend';
-import { BOOKING_MIN_HOURS, DayAvailability } from '@/lib/bookingPolicy';
+import {
+  BOOKING_MIN_HOURS,
+  DayAvailability,
+  getDurationKey,
+  getSegmentLabelFromShiftFit,
+  getShiftFit,
+  getTimeRangeLabel,
+} from '@/lib/bookingPolicy';
 import { CalendarDays, CheckCircle2, ClipboardCopy, MessageCircle, Phone } from 'lucide-react';
 
 type AvailabilityResponse = {
@@ -27,10 +34,11 @@ type AvailabilityResponse = {
   constraints: {
     minHours: number;
     maxHours: number;
-    halfDay: {
-      am: string;
-      pm: string;
-    };
+    timeStepMinutes: number;
+    operatingWindow: string;
+    morningWindow: string;
+    bufferWindow: string;
+    afternoonWindow: string;
   };
   days: Record<string, DayAvailability>;
 };
@@ -51,7 +59,10 @@ type BookingConfirmationDetails = {
   yachtSlug: string;
   date: string;
   requestedHours: number;
-  half: 'am' | 'pm' | null;
+  startHour: number;
+  endHour: number;
+  shiftFit: 'morning' | 'afternoon' | 'flexible';
+  segment: 'AM' | 'PM' | 'FLEXIBLE';
   timeRange: string;
   timezone: string;
   attendeeName: string;
@@ -68,20 +79,6 @@ const RICARDO_PHONE_DISPLAY = '+52 624 314 7806';
 
 const monthKeyFromDate = (date: Date) => format(date, 'yyyy-MM');
 
-const formatHour = (hour24: number) => {
-  const normalized = ((hour24 % 24) + 24) % 24;
-  const suffix = normalized >= 12 ? 'PM' : 'AM';
-  const hour12 = normalized % 12 === 0 ? 12 : normalized % 12;
-  return `${hour12}:00 ${suffix}`;
-};
-
-const getTimeRangeLabel = (requestedHours: number, half: 'am' | 'pm' | null) => {
-  if (!half) return 'Not selected';
-  const startHour = half === 'am' ? 8 : 13;
-  const endHour = startHour + requestedHours;
-  return `${formatHour(startHour)} - ${formatHour(endHour)}`;
-};
-
 const buildTripReportText = (details: BookingConfirmationDetails) =>
   [
     'Prestige Yachts Cabo - Booking Confirmation',
@@ -92,7 +89,7 @@ const buildTripReportText = (details: BookingConfirmationDetails) =>
     `Date: ${details.date}`,
     `Time: ${details.timeRange} (${details.timezone})`,
     `Requested Hours: ${details.requestedHours}`,
-    `Segment: ${details.half ? details.half.toUpperCase() : 'N/A'}`,
+    `Segment: ${details.segment}`,
     `Client Name: ${details.attendeeName}`,
     `Client Email: ${details.attendeeEmail}`,
     `Client Phone: ${details.attendeePhone || 'N/A'}`,
@@ -109,7 +106,7 @@ export default function PublicBooking() {
   const [monthDate, setMonthDate] = useState(() => new Date());
   const [requestedHours, setRequestedHours] = useState(BOOKING_MIN_HOURS);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedHalf, setSelectedHalf] = useState<'am' | 'pm' | null>(null);
+  const [selectedStartHour, setSelectedStartHour] = useState<number | null>(null);
   const [availability, setAvailability] = useState<AvailabilityResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -117,6 +114,18 @@ export default function PublicBooking() {
   const [lastBooking, setLastBooking] = useState<BookingConfirmationDetails | null>(null);
 
   const monthKey = useMemo(() => monthKeyFromDate(monthDate), [monthDate]);
+
+  const selectedDay = useMemo(
+    () => (selectedDate && availability ? availability.days[selectedDate] || null : null),
+    [availability, selectedDate]
+  );
+
+  const startHourOptions = useMemo(() => {
+    if (!selectedDay) return [];
+    const durationKey = getDurationKey(requestedHours);
+    if (!durationKey) return [];
+    return [...selectedDay.validStartsByDuration[durationKey]].sort((a, b) => a - b);
+  }, [selectedDay, requestedHours]);
 
   const loadAvailability = useCallback(async () => {
     if (!yachtSlug) return;
@@ -153,15 +162,21 @@ export default function PublicBooking() {
     loadAvailability();
   }, [loadAvailability]);
 
-  // Half is always required — no clearing on hour change.
+  useEffect(() => {
+    if (selectedStartHour === null) return;
+    if (!startHourOptions.includes(selectedStartHour)) {
+      setSelectedStartHour(null);
+    }
+  }, [selectedStartHour, startHourOptions]);
 
-  const handleSelection = ({ date, half }: { date: string; half: 'am' | 'pm' | null }) => {
+  const handleDateSelection = (date: string) => {
     setSelectedDate(date);
-    setSelectedHalf(half);
+    setSelectedStartHour(null);
   };
 
   const submitBooking = async (payload: {
     requestedHours: number;
+    startHour: number;
     attendee: { name: string; email: string; phoneNumber?: string };
     notes: string;
     cfToken: string | null;
@@ -182,7 +197,7 @@ export default function PublicBooking() {
           slug: yachtSlug,
           date: selectedDate,
           requestedHours: payload.requestedHours,
-          half: selectedHalf,
+          startHour: payload.startHour,
           attendee: payload.attendee,
           notes: payload.notes,
           cfToken: payload.cfToken,
@@ -194,6 +209,9 @@ export default function PublicBooking() {
         throw new Error(responsePayload.error || 'Booking request failed');
       }
 
+      const endHour = payload.startHour + payload.requestedHours;
+      const shiftFit = getShiftFit(payload.startHour, endHour);
+      const segment = getSegmentLabelFromShiftFit(shiftFit) as 'AM' | 'PM' | 'FLEXIBLE';
       const transactionId = responsePayload.transactionId || responsePayload.bookingUid || responsePayload.requestId;
       const confirmationDetails: BookingConfirmationDetails = {
         submittedAt: new Date().toISOString(),
@@ -204,8 +222,11 @@ export default function PublicBooking() {
         yachtSlug,
         date: selectedDate,
         requestedHours: payload.requestedHours,
-        half: selectedHalf,
-        timeRange: getTimeRangeLabel(payload.requestedHours, selectedHalf),
+        startHour: payload.startHour,
+        endHour,
+        shiftFit,
+        segment,
+        timeRange: getTimeRangeLabel(payload.requestedHours, payload.startHour),
         timezone: availability?.timezone || 'America/Mazatlan',
         attendeeName: payload.attendee.name,
         attendeeEmail: payload.attendee.email,
@@ -224,7 +245,16 @@ export default function PublicBooking() {
         trip_time_range: confirmationDetails.timeRange,
         trip_timezone: confirmationDetails.timezone,
         requested_hours: confirmationDetails.requestedHours,
-        segment: confirmationDetails.half || '',
+        start_hour: confirmationDetails.startHour,
+        end_hour: confirmationDetails.endHour,
+        shift_fit: confirmationDetails.shiftFit,
+        segment: confirmationDetails.segment,
+        selected_half:
+          confirmationDetails.segment === 'AM'
+            ? 'am'
+            : confirmationDetails.segment === 'PM'
+              ? 'pm'
+              : '',
         customer_name: confirmationDetails.attendeeName,
         customer_email: confirmationDetails.attendeeEmail,
         customer_phone: confirmationDetails.attendeePhone || '',
@@ -252,13 +282,13 @@ export default function PublicBooking() {
   const prevMonth = () => {
     setMonthDate((current) => addMonths(current, -1));
     setSelectedDate(null);
-    setSelectedHalf(null);
+    setSelectedStartHour(null);
   };
 
   const nextMonth = () => {
     setMonthDate((current) => addMonths(current, 1));
     setSelectedDate(null);
-    setSelectedHalf(null);
+    setSelectedStartHour(null);
   };
 
   const handleCopyReport = async () => {
@@ -370,6 +400,9 @@ export default function PublicBooking() {
                     <span className="font-medium">Time:</span> {lastBooking.timeRange}
                   </p>
                   <p>
+                    <span className="font-medium">Segment:</span> {lastBooking.segment}
+                  </p>
+                  <p>
                     <span className="font-medium">Client:</span> {lastBooking.attendeeName} ({lastBooking.attendeeEmail}
                     )
                   </p>
@@ -410,17 +443,17 @@ export default function PublicBooking() {
             days={availability.days}
             requestedHours={requestedHours}
             selectedDate={selectedDate}
-            selectedHalf={selectedHalf}
-            onSelect={handleSelection}
+            onSelectDate={handleDateSelection}
           />
           <BookingForm
             requestedHours={requestedHours}
             selectedDate={selectedDate}
-            selectedHalf={selectedHalf}
+            selectedStartHour={selectedStartHour}
+            startHourOptions={startHourOptions}
             isSubmitting={submitting}
             turnstileSiteKey={turnstileSiteKey}
             onRequestedHoursChange={setRequestedHours}
-            onHalfChange={setSelectedHalf}
+            onStartHourChange={setSelectedStartHour}
             onSubmit={submitBooking}
           />
         </div>
