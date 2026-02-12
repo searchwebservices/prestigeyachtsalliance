@@ -164,15 +164,18 @@ export default function Dashboard() {
           </div>
           <div className="flex md:grid md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible scrollbar-hide">
             {yachts.map((yacht) => (
-              <div key={yacht.id} className="flex-shrink-0 w-44 md:w-auto">
+              <div key={yacht.id} className="flex-shrink-0 w-56 md:w-auto">
                 <YachtCard
+                  id={yacht.id}
                   name={yacht.name}
                   vesselType={yacht.vessel_type}
                   capacity={yacht.capacity}
                   isFlagship={yacht.is_flagship || false}
                   imageUrl={getYachtPrimaryImage(yacht.id)}
                   isSelected={yacht.id === selectedYachtId}
+                  isAdmin={isAdmin}
                   onClick={() => handleYachtSelect(yacht)}
+                  onUpdate={fetchData}
                   compact
                 />
               </div>
