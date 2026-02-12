@@ -96,7 +96,7 @@ export default function TimeGrid({
           day: '2-digit',
         })
           .format(date)
-          .replaceAll('/', '-')
+          .split('/').join('-')
       ),
     [dates, timezone]
   );

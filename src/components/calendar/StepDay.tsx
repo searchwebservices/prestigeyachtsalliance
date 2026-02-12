@@ -5,7 +5,7 @@ import { DayAvailability } from '@/lib/bookingPolicy';
 import { cn } from '@/lib/utils';
 
 type Copy = {
-  weekdayLabels: string[];
+  weekdayLabels: readonly string[];
   previousMonth: string;
   nextMonth: string;
   monthLabel: string;
