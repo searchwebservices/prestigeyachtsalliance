@@ -208,6 +208,9 @@ ${yacht.owner_notes || 'No notes available.'}`;
 
   const handleEdit = () => {
     setEditData({
+      name: yacht.name,
+      vessel_type: yacht.vessel_type,
+      capacity: yacht.capacity,
       team_description: yacht.team_description,
       sales_description: yacht.sales_description,
       public_price: yacht.public_price,
