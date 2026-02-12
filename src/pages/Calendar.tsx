@@ -867,7 +867,7 @@ export default function Calendar() {
                       minDateKey={todayDateKey}
                       canGoPreviousMonth={canGoPreviousMonth}
                       copy={{
-                        weekdayLabels: copy.weekdayLabels,
+                        weekdayLabels: [...copy.weekdayLabels],
                         previousMonth: copy.previousMonth,
                         nextMonth: copy.nextMonth,
                         monthLabel,

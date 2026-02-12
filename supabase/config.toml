@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.public-booking-webhook]
 verify_jwt = false
+
+[functions.internal-booking-availability]
+verify_jwt = false
+
+[functions.internal-booking-create]
+verify_jwt = false
