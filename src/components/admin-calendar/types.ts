@@ -1,4 +1,4 @@
-export type CalendarViewMode = 'week' | 'day';
+export type CalendarViewMode = 'week' | 'day' | 'month';
 
 export type AdminCalendarYacht = {
   id: string;

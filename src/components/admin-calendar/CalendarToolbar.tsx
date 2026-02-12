@@ -6,6 +6,7 @@ type CalendarToolbarCopy = {
   today: string;
   previous: string;
   next: string;
+  month: string;
   week: string;
   day: string;
   refresh: string;
@@ -51,6 +52,15 @@ export default function CalendarToolbar({
 
       <div className="flex items-center gap-2">
         <div className="inline-flex rounded-md border border-border/80 bg-muted/30 p-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={viewMode === 'month' ? 'secondary' : 'ghost'}
+            className="h-8"
+            onClick={() => onViewModeChange('month')}
+          >
+            {copy.month}
+          </Button>
           <Button
             type="button"
             size="sm"
