@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.internal-booking-create]
 verify_jwt = false
+
+[functions.internal-calendar-bookings]
+verify_jwt = false
