@@ -134,7 +134,7 @@ export default function TimeGrid({
 
   return (
     <div className="rounded-xl border border-border/70 bg-card">
-      <div className="overflow-x-auto">
+      <div>
         <div className="min-w-[980px]">
           <div
             className="grid border-b border-border/70 bg-muted/30"

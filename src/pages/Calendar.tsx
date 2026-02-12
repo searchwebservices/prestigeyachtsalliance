@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { addDays, addWeeks, format, startOfWeek } from 'date-fns';
+import { addDays, addMonths, addWeeks, endOfMonth, format, startOfMonth, startOfWeek } from 'date-fns';
 import { enUS, es } from 'date-fns/locale';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import CalendarToolbar from '@/components/admin-calendar/CalendarToolbar';
 import YachtTabs from '@/components/admin-calendar/YachtTabs';
 import TimeGrid from '@/components/admin-calendar/TimeGrid';
+import MonthGrid from '@/components/admin-calendar/MonthGrid';
 import EventDrawer from '@/components/admin-calendar/EventDrawer';
 import { AdminCalendarEvent, AdminCalendarYacht, CalendarViewMode } from '@/components/admin-calendar/types';
 
@@ -46,6 +47,7 @@ const COPY = {
     today: 'Today',
     previous: 'Previous',
     next: 'Next',
+    month: 'Month',
     week: 'Week',
     day: 'Day',
     emptyYachts: 'No eligible yachts are configured for calendar view.',
@@ -81,6 +83,7 @@ const COPY = {
     today: 'Hoy',
     previous: 'Anterior',
     next: 'Siguiente',
+    month: 'Mes',
     week: 'Semana',
     day: 'Día',
     emptyYachts: 'No hay yates elegibles configurados para la vista de calendario.',
@@ -240,6 +243,17 @@ export default function Calendar() {
 
   const visibleDates = useMemo(() => {
     if (viewMode === 'day') return [anchorDate];
+    if (viewMode === 'month') {
+      const ms = startOfMonth(anchorDate);
+      const me = endOfMonth(anchorDate);
+      const days: Date[] = [];
+      let d = ms;
+      while (d <= me) {
+        days.push(d);
+        d = addDays(d, 1);
+      }
+      return days;
+    }
     const weekStart = startOfWeek(anchorDate, { weekStartsOn: 0 });
     return Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
   }, [anchorDate, viewMode]);
@@ -252,6 +266,10 @@ export default function Calendar() {
       return format(visibleDates[0], 'EEEE, MMM d, yyyy', { locale });
     }
 
+    if (viewMode === 'month') {
+      return format(anchorDate, 'MMMM yyyy', { locale });
+    }
+
     const first = visibleDates[0];
     const last = visibleDates[visibleDates.length - 1];
     const sameMonth = format(first, 'yyyy-MM') === format(last, 'yyyy-MM');
@@ -261,7 +279,7 @@ export default function Calendar() {
     }
 
     return `${format(first, 'MMM d', { locale })} - ${format(last, 'MMM d, yyyy', { locale })}`;
-  }, [locale, viewMode, visibleDates]);
+  }, [anchorDate, locale, viewMode, visibleDates]);
 
   const loadYachts = useCallback(async () => {
     setLoadingYachts(true);
@@ -433,11 +451,19 @@ export default function Calendar() {
   };
 
   const handlePrevious = () => {
-    setAnchorDate((current) => (viewMode === 'week' ? addWeeks(current, -1) : addDays(current, -1)));
+    setAnchorDate((current) => {
+      if (viewMode === 'month') return addMonths(current, -1);
+      if (viewMode === 'week') return addWeeks(current, -1);
+      return addDays(current, -1);
+    });
   };
 
   const handleNext = () => {
-    setAnchorDate((current) => (viewMode === 'week' ? addWeeks(current, 1) : addDays(current, 1)));
+    setAnchorDate((current) => {
+      if (viewMode === 'month') return addMonths(current, 1);
+      if (viewMode === 'week') return addWeeks(current, 1);
+      return addDays(current, 1);
+    });
   };
 
   const handleToday = () => {
@@ -507,6 +533,7 @@ export default function Calendar() {
                 today: copy.today,
                 previous: copy.previous,
                 next: copy.next,
+                month: copy.month,
                 week: copy.week,
                 day: copy.day,
                 refresh: copy.refresh,
@@ -539,20 +566,35 @@ export default function Calendar() {
               </Alert>
             ) : null}
 
-            <TimeGrid
-              dates={visibleDates}
-              events={events}
-              timezone={BOOKING_TIMEZONE}
-              language={language}
-              loading={loadingEvents}
-              nowMarker={nowMarker}
-              copy={{
-                loading: copy.loadingEvents,
-                empty: copy.emptyEvents,
-                gmtLabel,
-              }}
-              onEventClick={handleEventClick}
-            />
+            {viewMode === 'month' ? (
+              <MonthGrid
+                anchorDate={anchorDate}
+                events={events}
+                timezone={BOOKING_TIMEZONE}
+                language={language}
+                loading={loadingEvents}
+                copy={{
+                  loading: copy.loadingEvents,
+                  empty: copy.emptyEvents,
+                }}
+                onEventClick={handleEventClick}
+              />
+            ) : (
+              <TimeGrid
+                dates={visibleDates}
+                events={events}
+                timezone={BOOKING_TIMEZONE}
+                language={language}
+                loading={loadingEvents}
+                nowMarker={nowMarker}
+                copy={{
+                  loading: copy.loadingEvents,
+                  empty: copy.emptyEvents,
+                  gmtLabel,
+                }}
+                onEventClick={handleEventClick}
+              />
+            )}
           </CardContent>
         </Card>
       </div>
