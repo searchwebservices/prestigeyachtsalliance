@@ -724,10 +724,15 @@ export const buildAvailabilityForMonth = async ({
     const slotHours = slotsMap.get(dateKey) || new Set<number>();
     const blockedHours = blockedHoursMap.get(dateKey) || new Set<number>();
 
-    // Open hours = slot hours that are NOT blocked
+    // V3 operating model: if Cal exposes any slot on a day, treat the full
+    // operating window as open for policy evaluation and only subtract booked
+    // intervals. This keeps start-times anchored to 06:00-18:00 consistently.
+    const isDayOpen = slotHours.size > 0 || blockedHours.size > 0;
+
+    // Open hours = operating window hours that are NOT blocked (for open days)
     const openHours: number[] = [];
     for (let h = OPERATING_START; h < OPERATING_END; h++) {
-      if (slotHours.has(h) && !blockedHours.has(h)) {
+      if (isDayOpen && !blockedHours.has(h)) {
         openHours.push(h);
       }
     }
