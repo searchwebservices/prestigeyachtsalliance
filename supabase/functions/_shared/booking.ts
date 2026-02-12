@@ -1,20 +1,39 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-export const BOOKING_POLICY_VERSION = 'v2';
+// ── V3 Policy Constants ──────────────────────────────────────────────
+export const BOOKING_POLICY_VERSION = 'v3';
 export const BOOKING_TIMEZONE = 'America/Mazatlan';
 export const MIN_HOURS = 3;
 export const MAX_HOURS = 8;
+
+// Legacy export kept for compatibility
 export const PM_MAX_HOURS = 6;
+
+// V3 Windows
+export const OPERATING_START = 6;
+export const OPERATING_END = 18;
+export const MORNING_START = 6;
+export const MORNING_END = 13;
+export const BUFFER_START = 13;
+export const BUFFER_END = 15;
+export const AFTERNOON_START = 15;
+export const AFTERNOON_END = 18;
 
 export type DayState = 'available' | 'booked' | 'closed';
 export type BookingHalf = 'am' | 'pm';
+// Legacy type kept for compatibility
 export type BlockScope = 'HALF_AM' | 'HALF_PM' | 'FULL_DAY';
 
-export type DayAvailability = {
+export type V3DayAvailability = {
   am: DayState;
   pm: DayState;
   fullOpen: boolean;
+  openHours: number[];
+  validStartsByDuration: Record<string, number[]>;
 };
+
+// Legacy type alias
+export type DayAvailability = V3DayAvailability;
 
 export type YachtBookingConfig = {
   id: string;
@@ -29,6 +48,7 @@ export type YachtBookingConfig = {
   cal_embed_url: string | null;
 };
 
+// Legacy export kept for compatibility
 export const BLOCK_DURATIONS: Record<BlockScope, number> = {
   HALF_AM: 240,
   HALF_PM: 360,
@@ -250,7 +270,6 @@ const makeCalHeaders = (_config: CalApiConfig, apiVersion?: string) => {
     'Content-Type': 'application/json',
   };
 
-  // Only include platform credentials when explicitly provided.
   const calClientId = Deno.env.get('CAL_PLATFORM_CLIENT_ID');
   const calSecretKey = Deno.env.get('CAL_PLATFORM_SECRET_KEY');
   if (calClientId && calSecretKey) {
@@ -303,6 +322,150 @@ export const calRequest = async <T>({
   return payload as T;
 };
 
+// ── V3 Policy Helpers ────────────────────────────────────────────────
+
+/**
+ * Checks if a specific startHour is allowed by V3 policy for a given duration.
+ *
+ * Duration  Allowed starts
+ * --------  --------------
+ * 3h        06-10 (end<=13)  OR  15 (end=18)
+ * 4h        06-09 (end<=13)
+ * 5h        06-13 (end<=18)
+ * 6h        06-12
+ * 7h        06-11
+ * 8h        06-10
+ */
+export const isStartAllowedByPolicy = (requestedHours: number, startHour: number): boolean => {
+  if (!Number.isInteger(requestedHours) || requestedHours < MIN_HOURS || requestedHours > MAX_HOURS) return false;
+  if (!Number.isInteger(startHour)) return false;
+
+  const endHour = startHour + requestedHours;
+
+  // Must fit within operating window
+  if (startHour < OPERATING_START || endHour > OPERATING_END) return false;
+
+  if (requestedHours === 3) {
+    // Morning: end <= 13 (starts 6-10)
+    if (endHour <= MORNING_END) return true;
+    // Afternoon: start at 15 exactly (end = 18)
+    if (startHour === AFTERNOON_START) return true;
+    return false;
+  }
+
+  if (requestedHours === 4) {
+    // Morning only: end <= 13 (starts 6-9)
+    return endHour <= MORNING_END;
+  }
+
+  // 5-8h: can start any valid hour as long as end <= 18 (already checked above)
+  return true;
+};
+
+/**
+ * For a given day's open hours, return the valid start hours for a specific duration,
+ * filtered by policy and contiguous block availability.
+ */
+export const getValidStartsForDay = (openHours: number[], requestedHours: number): number[] => {
+  const openSet = new Set(openHours);
+  const validStarts: number[] = [];
+
+  for (let startHour = OPERATING_START; startHour <= OPERATING_END - requestedHours; startHour++) {
+    if (!isStartAllowedByPolicy(requestedHours, startHour)) continue;
+
+    // Check contiguous block: all hours from startHour to startHour + requestedHours - 1 must be open
+    let contiguous = true;
+    for (let h = startHour; h < startHour + requestedHours; h++) {
+      if (!openSet.has(h)) {
+        contiguous = false;
+        break;
+      }
+    }
+
+    if (contiguous) validStarts.push(startHour);
+  }
+
+  return validStarts;
+};
+
+/**
+ * Derive shift classification from start/end hours.
+ */
+export const deriveShiftFit = (startHour: number, endHour: number): 'morning' | 'afternoon' | 'full_span' => {
+  if (endHour <= MORNING_END) return 'morning';
+  if (startHour >= AFTERNOON_START) return 'afternoon';
+  return 'full_span';
+};
+
+/**
+ * Derive AM/PM segment string from shift fit.
+ */
+export const deriveSegment = (shiftFit: string): string => {
+  if (shiftFit === 'morning') return 'am';
+  if (shiftFit === 'afternoon') return 'pm';
+  return 'full';
+};
+
+/**
+ * Resolve the start hour for a booking create request.
+ * Uses startHour if provided; otherwise falls back to legacy half mapping.
+ */
+export const resolveStartHourForCreate = ({
+  startHour,
+  half,
+  requestedHours,
+}: {
+  startHour?: number | null;
+  half?: BookingHalf | null;
+  requestedHours: number;
+}):
+  | { ok: true; startHour: number; endHour: number; shiftFit: string; segment: string }
+  | { ok: false; message: string } => {
+
+  if (!Number.isInteger(requestedHours) || requestedHours < MIN_HOURS || requestedHours > MAX_HOURS) {
+    return { ok: false, message: `requestedHours must be an integer between ${MIN_HOURS} and ${MAX_HOURS}` };
+  }
+
+  let resolved: number;
+  if (startHour != null && Number.isInteger(startHour)) {
+    resolved = startHour;
+  } else if (half === 'am') {
+    resolved = 6;
+  } else if (half === 'pm') {
+    resolved = 15;
+  } else {
+    return { ok: false, message: 'startHour or half (am/pm) is required' };
+  }
+
+  if (!isStartAllowedByPolicy(requestedHours, resolved)) {
+    return {
+      ok: false,
+      message: `Start hour ${resolved}:00 is not allowed for ${requestedHours}h booking by V3 policy`,
+    };
+  }
+
+  const endHour = resolved + requestedHours;
+  const shiftFit = deriveShiftFit(resolved, endHour);
+  const segment = deriveSegment(shiftFit);
+
+  return { ok: true, startHour: resolved, endHour, shiftFit, segment };
+};
+
+/**
+ * Check if a specific start hour is available in the day's validStartsByDuration.
+ */
+export const isStartSelectionAvailable = (
+  day: V3DayAvailability,
+  requestedHours: number,
+  startHour: number,
+): boolean => {
+  const validStarts = day.validStartsByDuration[String(requestedHours)];
+  if (!validStarts) return false;
+  return validStarts.includes(startHour);
+};
+
+// ── Cal.com Data Fetching ────────────────────────────────────────────
+
 type SlotRecord = { time?: string; start?: string } | string;
 
 type CalSlotsPayload = {
@@ -330,33 +493,12 @@ const getBookingStatus = (booking: Record<string, unknown>) => {
 
 const isBlockingBookingStatus = (status: string) => ['accepted', 'pending', 'unconfirmed'].includes(status);
 
-const inferBlockScope = ({
-  startIso,
-  endIso,
-  timeZone,
-}: {
-  startIso: string;
-  endIso: string;
-  timeZone: string;
-}): BlockScope => {
-  const durationMinutes = Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60_000);
-  if (durationMinutes >= BLOCK_DURATIONS.FULL_DAY) return 'FULL_DAY';
-
-  const localStart = toTimeZoneParts(startIso, timeZone);
-  if (localStart.hour >= 13) return 'HALF_PM';
-  return 'HALF_AM';
-};
-
 const getSlotIso = (slot: SlotRecord) => {
   if (typeof slot === 'string') return slot;
   if (typeof slot.start === 'string') return slot.start;
   if (typeof slot.time === 'string') return slot.time;
   return null;
 };
-
-type OpenState = { am: boolean; pm: boolean; full: boolean };
-
-const createOpenState = (): OpenState => ({ am: false, pm: false, full: false });
 
 const getOrCreate = <T>(map: Map<string, T>, key: string, create: () => T) => {
   const existing = map.get(key);
@@ -366,22 +508,15 @@ const getOrCreate = <T>(map: Map<string, T>, key: string, create: () => T) => {
   return next;
 };
 
-const normalizeBlockScope = (scope: string | null): BlockScope | null => {
-  if (scope === 'HALF_AM' || scope === 'HALF_PM' || scope === 'FULL_DAY') return scope;
-  return null;
-};
-
 const getSlotsMap = (payload: CalSlotsPayload): Record<string, SlotRecord[]> => {
   const data = payload.data;
   if (!data || !isRecord(data)) return {};
 
-  // Newer shape: { data: { "2026-02-11": [{ start: ... }] } }
   const directDayEntries = Object.entries(data).filter(([, value]) => Array.isArray(value));
   if (directDayEntries.length > 0) {
     return Object.fromEntries(directDayEntries) as Record<string, SlotRecord[]>;
   }
 
-  // Legacy shape: { data: { slots: { "2026-02-11": [...] } } }
   const slots = (data as { slots?: unknown }).slots;
   if (!slots || !isRecord(slots)) return {};
 
@@ -390,20 +525,10 @@ const getSlotsMap = (payload: CalSlotsPayload): Record<string, SlotRecord[]> => 
 };
 
 /**
- * Fetch available time-slots from Cal.com using a 60-minute probe duration,
- * then derive AM / PM / Full-day availability from the returned hourly slots.
- *
- * Cal.com spaces slots by duration (non-overlapping), so querying with the
- * actual block durations (240, 360, 480) produces very few start times
- * and misses valid PM starts entirely. Using duration=60 gives us every
- * available hour, from which we can reliably check window coverage.
- *
- * AM  (08-12, 240 min): requires slot at 08:00
- * PM  (13-19, 360 min): requires slot at 13:00
- * Full (08-16, 480 min): requires slots at 08:00 AND 13:00
- *   (we check both anchors; Cal.com enforces the rest via its own schedule)
+ * Fetch available time-slots from Cal.com using duration=60.
+ * Returns a Map of dateKey -> Set<hour> of available hours within operating window.
  */
-const fetchSlotsOpenMap = async ({
+const fetchSlotsOpenHours = async ({
   config,
   eventTypeId,
   monthRange,
@@ -413,10 +538,7 @@ const fetchSlotsOpenMap = async ({
   eventTypeId: number;
   monthRange: { startUtc: string; endUtc: string };
   timeZone: string;
-}) => {
-  const openMap = new Map<string, OpenState>();
-
-  // Single query with duration=60 to get all available hourly slots.
+}): Promise<Map<string, Set<number>>> => {
   const payload = await calRequest<CalSlotsPayload>({
     config,
     method: 'GET',
@@ -432,8 +554,6 @@ const fetchSlotsOpenMap = async ({
   });
 
   const slotMap = getSlotsMap(payload);
-
-  // Build a set of available hours per date-key.
   const hoursPerDay = new Map<string, Set<number>>();
 
   for (const slots of Object.values(slotMap)) {
@@ -442,27 +562,15 @@ const fetchSlotsOpenMap = async ({
       if (!iso) continue;
 
       const local = toTimeZoneParts(iso, timeZone);
-      if (local.minute !== 0) continue; // only full-hour slots
+      if (local.minute !== 0) continue;
+      if (local.hour < OPERATING_START || local.hour >= OPERATING_END) continue;
 
       const hours = getOrCreate(hoursPerDay, local.dateKey, () => new Set<number>());
       hours.add(local.hour);
     }
   }
 
-  for (const [dateKey, hours] of hoursPerDay) {
-    const day = getOrCreate(openMap, dateKey, createOpenState);
-
-    // AM block starts at 08:00 (240 min → 08-12). Check anchor hour.
-    day.am = hours.has(8);
-
-    // PM block starts at 13:00 (360 min → 13-19). Check anchor hour.
-    day.pm = hours.has(13);
-
-    // Full-day block starts at 08:00 (480 min → 08-16). Both halves must be open.
-    day.full = hours.has(8) && hours.has(13);
-  }
-
-  return openMap;
+  return hoursPerDay;
 };
 
 const fetchBookings = async ({
@@ -514,6 +622,10 @@ const fetchBookings = async ({
   return allBookings;
 };
 
+// ── Build Availability ───────────────────────────────────────────────
+
+const DURATIONS = [3, 4, 5, 6, 7, 8];
+
 export const buildAvailabilityForMonth = async ({
   config,
   eventTypeId,
@@ -537,8 +649,8 @@ export const buildAvailabilityForMonth = async ({
     throw new Error('Invalid month key');
   }
 
-  const [openMap, bookings] = await Promise.all([
-    fetchSlotsOpenMap({
+  const [slotsMap, bookings] = await Promise.all([
+    fetchSlotsOpenHours({
       config,
       eventTypeId,
       monthRange,
@@ -551,7 +663,8 @@ export const buildAvailabilityForMonth = async ({
     }),
   ]);
 
-  const bookedMap = new Map<string, { am: boolean; pm: boolean }>();
+  // Build blocked hours per day from exact booked intervals
+  const blockedHoursMap = new Map<string, Set<number>>();
 
   for (const booking of bookings) {
     const status = getBookingStatus(booking);
@@ -561,54 +674,84 @@ export const buildAvailabilityForMonth = async ({
     const endIso = asString(booking.end) || asString(booking.endTime);
     if (!startIso || !endIso) continue;
 
-    const metadata = isRecord(booking.metadata) ? booking.metadata : {};
-    const explicitScope = normalizeBlockScope(asString(metadata.block_scope));
-    const requestedHoursRaw = asString(metadata.requested_hours);
-    const requestedHours = requestedHoursRaw ? Number(requestedHoursRaw) : Number.NaN;
-    const blockScopeFromHours =
-      Number.isFinite(requestedHours) && requestedHours >= 5 ? 'FULL_DAY' : null;
-    const blockScope = blockScopeFromHours || explicitScope || inferBlockScope({ startIso, endIso, timeZone });
-    const local = toTimeZoneParts(startIso, timeZone);
+    const localStart = toTimeZoneParts(startIso, timeZone);
+    const localEnd = toTimeZoneParts(endIso, timeZone);
 
-    const day = getOrCreate(bookedMap, local.dateKey, () => ({ am: false, pm: false }));
-    if (blockScope === 'HALF_AM') day.am = true;
-    if (blockScope === 'HALF_PM') day.pm = true;
-    if (blockScope === 'FULL_DAY') {
-      day.am = true;
-      day.pm = true;
+    // Block each hour in the interval [startHour, endHour)
+    const startH = localStart.hour;
+    const endDateKey = localEnd.dateKey;
+
+    // If booking spans across days, only block hours on the start day within operating window
+    // (multi-day bookings are edge cases for this yacht use case)
+    if (localStart.dateKey === endDateKey || localEnd.hour === 0) {
+      const endH = localStart.dateKey === endDateKey ? localEnd.hour : OPERATING_END;
+      const blocked = getOrCreate(blockedHoursMap, localStart.dateKey, () => new Set<number>());
+      for (let h = startH; h < endH; h++) {
+        if (h >= OPERATING_START && h < OPERATING_END) blocked.add(h);
+      }
+    } else {
+      // Spans multiple days - block remaining hours on start day
+      const blocked1 = getOrCreate(blockedHoursMap, localStart.dateKey, () => new Set<number>());
+      for (let h = startH; h < OPERATING_END; h++) {
+        if (h >= OPERATING_START) blocked1.add(h);
+      }
+      // Block hours on end day
+      const blocked2 = getOrCreate(blockedHoursMap, endDateKey, () => new Set<number>());
+      for (let h = OPERATING_START; h < localEnd.hour; h++) {
+        blocked2.add(h);
+      }
     }
   }
 
-  const days: Record<string, DayAvailability> = {};
+  const days: Record<string, V3DayAvailability> = {};
   const totalDays = getDaysInMonth(parsedMonth.year, parsedMonth.month);
 
   for (let day = 1; day <= totalDays; day += 1) {
     const dateKey = `${parsedMonth.year}-${pad2(parsedMonth.month)}-${pad2(day)}`;
-    const open = openMap.get(dateKey) || createOpenState();
-    const booked = bookedMap.get(dateKey) || { am: false, pm: false };
-
     const isBeforeGoLive = !!liveFromDate && dateKey < liveFromDate;
 
-    const amState: DayState = isBeforeGoLive
-      ? 'closed'
-      : booked.am
-        ? 'booked'
-        : open.am
-          ? 'available'
-          : 'closed';
+    if (isBeforeGoLive) {
+      days[dateKey] = {
+        am: 'closed',
+        pm: 'closed',
+        fullOpen: false,
+        openHours: [],
+        validStartsByDuration: { '3': [], '4': [], '5': [], '6': [], '7': [], '8': [] },
+      };
+      continue;
+    }
 
-    const pmState: DayState = isBeforeGoLive
-      ? 'closed'
-      : booked.pm
-        ? 'booked'
-        : open.pm
-          ? 'available'
-          : 'closed';
+    const slotHours = slotsMap.get(dateKey) || new Set<number>();
+    const blockedHours = blockedHoursMap.get(dateKey) || new Set<number>();
+
+    // Open hours = slot hours that are NOT blocked
+    const openHours: number[] = [];
+    for (let h = OPERATING_START; h < OPERATING_END; h++) {
+      if (slotHours.has(h) && !blockedHours.has(h)) {
+        openHours.push(h);
+      }
+    }
+
+    // Compute validStartsByDuration for each duration
+    const validStartsByDuration: Record<string, number[]> = {};
+    for (const dur of DURATIONS) {
+      validStartsByDuration[String(dur)] = getValidStartsForDay(openHours, dur);
+    }
+
+    // Derive am/pm/fullOpen for hybrid calendar highlighting
+    const hasAnyMorningStarts = DURATIONS.some(d => validStartsByDuration[String(d)].some(s => s < MORNING_END));
+    const hasAnyAfternoonStarts = DURATIONS.some(d => validStartsByDuration[String(d)].some(s => s >= AFTERNOON_START));
+
+    const amState: DayState = hasAnyMorningStarts ? 'available' : (blockedHours.size > 0 ? 'booked' : 'closed');
+    const pmState: DayState = hasAnyAfternoonStarts ? 'available' : (blockedHours.size > 0 ? 'booked' : 'closed');
+    const fullOpen = hasAnyMorningStarts && hasAnyAfternoonStarts;
 
     days[dateKey] = {
       am: amState,
       pm: pmState,
-      fullOpen: !isBeforeGoLive && open.full,
+      fullOpen,
+      openHours,
+      validStartsByDuration,
     };
   }
 
@@ -619,6 +762,8 @@ export const buildAvailabilityForMonth = async ({
   };
 };
 
+// ── Legacy Helpers (kept for backward compat during migration) ───────
+
 export const resolveBookingBlock = ({
   requestedHours,
   half,
@@ -628,24 +773,15 @@ export const resolveBookingBlock = ({
 }):
   | { ok: true; blockScope: BlockScope; blockMinutes: number; startHour: number }
   | { ok: false; message: string } => {
-  if (!Number.isInteger(requestedHours) || requestedHours < MIN_HOURS || requestedHours > MAX_HOURS) {
-    return { ok: false, message: `requestedHours must be an integer between ${MIN_HOURS} and ${MAX_HOURS}` };
-  }
+  // Delegate to V3 resolver
+  const resolution = resolveStartHourForCreate({ half, requestedHours });
+  if (!resolution.ok) return resolution;
 
-  if (half !== 'am' && half !== 'pm') {
-    return { ok: false, message: 'half (am or pm) is required for all bookings' };
-  }
-
-  if (half === 'pm' && requestedHours > PM_MAX_HOURS) {
-    return { ok: false, message: `PM bookings support up to ${PM_MAX_HOURS} hours` };
-  }
-
-  const startHour = half === 'am' ? 8 : 13;
   const blockMinutes = requestedHours * 60;
   const blockScope: BlockScope =
-    requestedHours >= 5 ? 'FULL_DAY' : half === 'am' ? 'HALF_AM' : 'HALF_PM';
+    requestedHours >= 5 ? 'FULL_DAY' : (half === 'pm' ? 'HALF_PM' : 'HALF_AM');
 
-  return { ok: true, blockScope, blockMinutes, startHour };
+  return { ok: true, blockScope, blockMinutes, startHour: resolution.startHour };
 };
 
 export const isSelectionAvailable = ({
@@ -653,19 +789,17 @@ export const isSelectionAvailable = ({
   requestedHours,
   half,
 }: {
-  day: DayAvailability;
+  day: V3DayAvailability;
   requestedHours: number;
   half: BookingHalf | null;
-}) => {
-  if (requestedHours >= 5) {
-    // 5+ hour requests reserve the full day inventory regardless of AM/PM start preference.
-    return day.am === 'available' && day.pm === 'available';
-  }
-
-  if (half === 'am') return day.am === 'available';
-  if (half === 'pm') return day.pm === 'available';
-  return false;
+}): boolean => {
+  // V3: use validStartsByDuration
+  const resolved = resolveStartHourForCreate({ half, requestedHours });
+  if (!resolved.ok) return false;
+  return isStartSelectionAvailable(day, requestedHours, resolved.startHour);
 };
+
+// ── Utility Exports ──────────────────────────────────────────────────
 
 export const sha256Hex = async (value: string) => {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));

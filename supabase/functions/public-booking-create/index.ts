@@ -6,15 +6,17 @@ import {
   buildAvailabilityForMonth,
   calRequest,
   createServiceRoleClient,
+  deriveShiftFit,
+  deriveSegment,
   getCalApiConfig,
   getClientIp,
   getCorsHeaders,
   isDateKey,
   isOriginAllowed,
-  isSelectionAvailable,
+  isStartSelectionAvailable,
   json,
   logBookingRequest,
-  resolveBookingBlock,
+  resolveStartHourForCreate,
   sha256Hex,
   verifyTurnstileToken,
   zonedDateTimeToUtcIso,
@@ -24,6 +26,7 @@ type CreateBookingBody = {
   slug?: string;
   date?: string;
   requestedHours?: number;
+  startHour?: number | null;
   half?: BookingHalf | null;
   attendee?: {
     name?: string;
@@ -34,7 +37,7 @@ type CreateBookingBody = {
   cfToken?: string | null;
 };
 
-const BOOKING_SOURCE = 'prestigeyachtsalliance_public_booking_v2';
+const BOOKING_SOURCE = 'prestigeyachtsalliance_public_booking_v3';
 
 const readRateLimitSettings = () => {
   const maxRequests = Number(Deno.env.get('BOOKING_RATE_LIMIT_MAX_REQUESTS') || '12');
@@ -83,6 +86,7 @@ Deno.serve(async (req) => {
     const slug = body.slug?.trim();
     const date = body.date?.trim();
     const requestedHours = Number(body.requestedHours);
+    const startHourInput = body.startHour != null ? Number(body.startHour) : null;
     const half = body.half ?? null;
     const attendeeName = body.attendee?.name?.trim();
     const attendeeEmail = body.attendee?.email?.trim().toLowerCase();
@@ -111,8 +115,14 @@ Deno.serve(async (req) => {
       return json(req, 400, { error: 'attendee.name and attendee.email are required', requestId });
     }
 
-    const blockResolution = resolveBookingBlock({ requestedHours, half });
-    if (!blockResolution.ok) {
+    // V3: resolve start hour via policy
+    const startResolution = resolveStartHourForCreate({
+      startHour: startHourInput,
+      half,
+      requestedHours,
+    });
+
+    if (!startResolution.ok) {
       await logBookingRequest({
         supabase,
         endpoint: 'public-booking-create',
@@ -121,12 +131,16 @@ Deno.serve(async (req) => {
         details: {
           reason: 'invalid_booking_rule',
           requestedHours,
+          startHour: startHourInput,
           half,
         },
       });
-      return json(req, 400, { error: blockResolution.message, requestId });
+      return json(req, 400, { error: startResolution.message, requestId });
     }
 
+    const { startHour, endHour, shiftFit, segment } = startResolution;
+
+    // ── Yacht lookup ──
     const { data: yacht, error: yachtError } = await supabase
       .from('yachts')
       .select(
@@ -156,7 +170,7 @@ Deno.serve(async (req) => {
         statusCode: 409,
         details: { reason: 'invalid_yacht_mode_or_event_type', slug },
       });
-      return json(req, 409, { error: 'Yacht is not ready for booking v2', requestId });
+      return json(req, 409, { error: 'Yacht is not ready for booking', requestId });
     }
 
     if (yacht.booking_v2_live_from && date < yacht.booking_v2_live_from) {
@@ -170,6 +184,7 @@ Deno.serve(async (req) => {
       return json(req, 409, { error: 'Booking date is before this yacht go-live date', requestId });
     }
 
+    // ── Rate limiting ──
     const rateLimitSettings = readRateLimitSettings();
     const limiterSince = new Date(
       Date.now() - rateLimitSettings.windowMinutes * 60_000
@@ -221,6 +236,7 @@ Deno.serve(async (req) => {
     });
     if (limiterInsertError) throw limiterInsertError;
 
+    // ── Turnstile ──
     const turnstileResult = await verifyTurnstileToken({
       token: body.cfToken || null,
       ip: ipAddress,
@@ -236,7 +252,7 @@ Deno.serve(async (req) => {
       return json(req, 400, { error: turnstileResult.reason, requestId });
     }
 
-    // Re-check availability server-side right before booking create.
+    // ── Re-check availability server-side ──
     const availability = await buildAvailabilityForMonth({
       config: getCalApiConfig(),
       eventTypeId: yacht.cal_event_type_id,
@@ -245,7 +261,7 @@ Deno.serve(async (req) => {
       liveFromDate: yacht.booking_v2_live_from,
     });
     const selectedDay = availability.days[date];
-    if (!selectedDay || !isSelectionAvailable({ day: selectedDay, requestedHours, half })) {
+    if (!selectedDay || !isStartSelectionAvailable(selectedDay, requestedHours, startHour)) {
       await logBookingRequest({
         supabase,
         endpoint: 'public-booking-create',
@@ -256,18 +272,18 @@ Deno.serve(async (req) => {
           slug,
           date,
           requestedHours,
-          half,
+          startHour,
         },
       });
-      return json(req, 409, { error: 'Selected date/segment is no longer available', requestId });
+      return json(req, 409, { error: 'Selected date/time is no longer available', requestId });
     }
 
-    const bookingStartUtc = zonedDateTimeToUtcIso(
-      date,
-      blockResolution.startHour,
-      0,
-      BOOKING_TIMEZONE
-    );
+    // ── Create Cal.com booking ──
+    const bookingStartUtc = zonedDateTimeToUtcIso(date, startHour, 0, BOOKING_TIMEZONE);
+    const lengthInMinutes = requestedHours * 60;
+
+    // Derive selected_half for legacy compat
+    const selectedHalf = half || (segment === 'am' ? 'am' : segment === 'pm' ? 'pm' : '');
 
     const bookingPayload = await calRequest<{
       data?: Record<string, unknown>;
@@ -279,7 +295,7 @@ Deno.serve(async (req) => {
       body: {
         start: bookingStartUtc,
         eventTypeId: yacht.cal_event_type_id,
-        lengthInMinutes: blockResolution.blockMinutes,
+        lengthInMinutes,
         attendee: {
           name: attendeeName,
           email: attendeeEmail,
@@ -289,9 +305,12 @@ Deno.serve(async (req) => {
         metadata: {
           policy_version: BOOKING_POLICY_VERSION,
           yacht_slug: yacht.slug,
-          block_scope: blockResolution.blockScope,
-          selected_half: half || '',
+          start_hour: String(startHour),
+          end_hour: String(endHour),
           requested_hours: String(requestedHours),
+          shift_fit: shiftFit,
+          segment,
+          selected_half: selectedHalf,
           timezone: BOOKING_TIMEZONE,
           source: BOOKING_SOURCE,
           ...(notes ? { notes } : {}),
@@ -316,8 +335,10 @@ Deno.serve(async (req) => {
         slug,
         date,
         requestedHours,
-        half,
-        blockScope: blockResolution.blockScope,
+        startHour,
+        endHour,
+        shiftFit,
+        segment,
         transactionId,
         bookingUid,
         bookingStatus,
@@ -357,7 +378,7 @@ Deno.serve(async (req) => {
       }
 
       if (isConflict) {
-        return json(req, 409, { error: 'Selected date/segment is no longer available', requestId });
+        return json(req, 409, { error: 'Selected date/time is no longer available', requestId });
       }
       return json(req, 502, { error: 'Upstream booking provider error', requestId });
     }

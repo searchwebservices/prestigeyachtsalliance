@@ -2,6 +2,14 @@ import {
   BOOKING_TIMEZONE,
   MAX_HOURS,
   MIN_HOURS,
+  OPERATING_START,
+  OPERATING_END,
+  MORNING_START,
+  MORNING_END,
+  BUFFER_START,
+  BUFFER_END,
+  AFTERNOON_START,
+  AFTERNOON_END,
   buildAvailabilityForMonth,
   createServiceRoleClient,
   getCalApiConfig,
@@ -106,6 +114,8 @@ Deno.serve(async (req) => {
       liveFromDate: yacht.booking_v2_live_from,
     });
 
+    const pad = (n: number) => String(n).padStart(2, '0');
+
     const payload = {
       requestId,
       yacht: {
@@ -120,10 +130,12 @@ Deno.serve(async (req) => {
       constraints: {
         minHours: MIN_HOURS,
         maxHours: MAX_HOURS,
-        halfDay: {
-          am: '08:00-12:00',
-          pm: '13:00-19:00',
-        },
+        timeStepMinutes: 60,
+        operatingWindow: `${pad(OPERATING_START)}:00-${pad(OPERATING_END)}:00`,
+        morningWindow: `${pad(MORNING_START)}:00-${pad(MORNING_END)}:00`,
+        bufferWindow: `${pad(BUFFER_START)}:00-${pad(BUFFER_END)}:00`,
+        afternoonWindow: `${pad(AFTERNOON_START)}:00-${pad(AFTERNOON_END)}:00`,
+        policyVersion: 'v3',
       },
       days: availability.days,
     };
@@ -160,4 +172,3 @@ Deno.serve(async (req) => {
     return json(req, 500, { error: message, requestId });
   }
 });
-
