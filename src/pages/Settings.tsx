@@ -558,20 +558,22 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="profile">
-              <UserCircle2 className="mr-2 h-4 w-4" />
-              {copy.tabProfile}
-            </TabsTrigger>
-            <TabsTrigger value="preferences">
-              <Palette className="mr-2 h-4 w-4" />
-              {copy.tabPreferences}
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              <History className="mr-2 h-4 w-4" />
-              {copy.tabHistory}
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto">
+            <TabsList className="inline-flex w-max min-w-full whitespace-nowrap md:grid md:w-full md:grid-cols-3">
+              <TabsTrigger value="profile" className="min-w-[8.5rem] md:min-w-0">
+                <UserCircle2 className="hidden h-4 w-4 md:mr-2 md:inline-flex" aria-hidden="true" />
+                {copy.tabProfile}
+              </TabsTrigger>
+              <TabsTrigger value="preferences" className="min-w-[8.5rem] md:min-w-0">
+                <Palette className="hidden h-4 w-4 md:mr-2 md:inline-flex" aria-hidden="true" />
+                {copy.tabPreferences}
+              </TabsTrigger>
+              <TabsTrigger value="history" className="min-w-[10.5rem] md:min-w-0">
+                <History className="hidden h-4 w-4 md:mr-2 md:inline-flex" aria-hidden="true" />
+                {copy.tabHistory}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="profile">
             <Card>
