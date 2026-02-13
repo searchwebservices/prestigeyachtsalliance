@@ -272,6 +272,51 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Sync reservation_details ──
+    const newStartUtc = bookingStartUtc;
+    const newEndUtc = zonedDateTimeToUtcIso(date, endHour, 0, BOOKING_TIMEZONE);
+    const activeUid = resultBookingUid || bookingUid;
+
+    const { data: existingRes } = await serviceSupabase
+      .from('reservation_details')
+      .select('id,booking_uid_history')
+      .eq('booking_uid_current', bookingUid)
+      .maybeSingle();
+
+    if (existingRes) {
+      const history = Array.isArray(existingRes.booking_uid_history) ? existingRes.booking_uid_history : [];
+      if (!history.includes(bookingUid)) history.push(bookingUid);
+      // Deduplicate
+      const dedupedHistory = [...new Set(history)];
+
+      await serviceSupabase
+        .from('reservation_details')
+        .update({
+          booking_uid_current: activeUid,
+          booking_uid_history: dedupedHistory,
+          start_at: newStartUtc,
+          end_at: newEndUtc,
+          status: 'booked',
+          updated_by: user.id,
+        })
+        .eq('id', existingRes.id);
+
+      await serviceSupabase.from('reservation_change_log').insert({
+        reservation_id: existingRes.id,
+        booking_uid: activeUid,
+        action: 'rescheduled',
+        actor_user_id: user.id,
+        payload: {
+          changeMode,
+          previousBookingUid: bookingUid,
+          date,
+          startHour,
+          requestedHours,
+          reason: reason || null,
+        },
+      });
+    }
+
     await logBookingRequest({
       supabase: serviceSupabase,
       endpoint: ENDPOINT,
@@ -287,6 +332,7 @@ Deno.serve(async (req) => {
         requestedHours,
         startHour,
         userId: user.id,
+        reservationSynced: !!existingRes,
       },
     });
 

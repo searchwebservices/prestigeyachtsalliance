@@ -116,6 +116,54 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_profiles: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          full_name: string
+          id: string
+          nationality: string
+          notes: string
+          phone: string
+          preferred_language: string
+          preferred_name: string
+          updated_at: string
+          updated_by: string | null
+          whatsapp: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          nationality?: string
+          notes?: string
+          phone?: string
+          preferred_language?: string
+          preferred_name?: string
+          updated_at?: string
+          updated_by?: string | null
+          whatsapp?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          nationality?: string
+          notes?: string
+          phone?: string
+          preferred_language?: string
+          preferred_name?: string
+          updated_at?: string
+          updated_by?: string | null
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -151,6 +199,189 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      reservation_change_log: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          booking_uid: string
+          created_at: string
+          id: string
+          payload: Json
+          reservation_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          booking_uid: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          reservation_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          booking_uid?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          reservation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_change_log_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservation_details"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservation_details: {
+        Row: {
+          adult_count: number | null
+          allergies: string[]
+          booking_uid_current: string
+          booking_uid_history: string[]
+          concierge_notes: string
+          created_at: string
+          created_by: string | null
+          dietary_notes: string
+          end_at: string
+          guest_count: number | null
+          guest_profile_id: string | null
+          id: string
+          internal_notes: string
+          kids_count: number | null
+          kids_notes: string
+          mobility_notes: string
+          occasion_notes: string
+          preferences: string[]
+          source: string
+          start_at: string
+          status: string
+          staying_multiple_places: boolean
+          updated_at: string
+          updated_by: string | null
+          yacht_name: string
+          yacht_slug: string
+        }
+        Insert: {
+          adult_count?: number | null
+          allergies?: string[]
+          booking_uid_current: string
+          booking_uid_history?: string[]
+          concierge_notes?: string
+          created_at?: string
+          created_by?: string | null
+          dietary_notes?: string
+          end_at: string
+          guest_count?: number | null
+          guest_profile_id?: string | null
+          id?: string
+          internal_notes?: string
+          kids_count?: number | null
+          kids_notes?: string
+          mobility_notes?: string
+          occasion_notes?: string
+          preferences?: string[]
+          source?: string
+          start_at: string
+          status?: string
+          staying_multiple_places?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          yacht_name?: string
+          yacht_slug: string
+        }
+        Update: {
+          adult_count?: number | null
+          allergies?: string[]
+          booking_uid_current?: string
+          booking_uid_history?: string[]
+          concierge_notes?: string
+          created_at?: string
+          created_by?: string | null
+          dietary_notes?: string
+          end_at?: string
+          guest_count?: number | null
+          guest_profile_id?: string | null
+          id?: string
+          internal_notes?: string
+          kids_count?: number | null
+          kids_notes?: string
+          mobility_notes?: string
+          occasion_notes?: string
+          preferences?: string[]
+          source?: string
+          start_at?: string
+          status?: string
+          staying_multiple_places?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          yacht_name?: string
+          yacht_slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_details_guest_profile_id_fkey"
+            columns: ["guest_profile_id"]
+            isOneToOne: false
+            referencedRelation: "guest_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservation_stays: {
+        Row: {
+          check_in_date: string | null
+          check_out_date: string | null
+          created_at: string
+          id: string
+          location_label: string
+          notes: string
+          property_name: string
+          reservation_id: string
+          sort_order: number
+          unit_or_room: string
+          updated_at: string
+        }
+        Insert: {
+          check_in_date?: string | null
+          check_out_date?: string | null
+          created_at?: string
+          id?: string
+          location_label?: string
+          notes?: string
+          property_name?: string
+          reservation_id: string
+          sort_order?: number
+          unit_or_room?: string
+          updated_at?: string
+        }
+        Update: {
+          check_in_date?: string | null
+          check_out_date?: string | null
+          created_at?: string
+          id?: string
+          location_label?: string
+          notes?: string
+          property_name?: string
+          reservation_id?: string
+          sort_order?: number
+          unit_or_room?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_stays_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservation_details"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_activity: {
         Row: {

@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.internal-calendar-booking-reschedule]
 verify_jwt = false
+
+[functions.internal-reservation-details]
+verify_jwt = false
+
+[functions.internal-team-member-reservation-oversight]
+verify_jwt = false
