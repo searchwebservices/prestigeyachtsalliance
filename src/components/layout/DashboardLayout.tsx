@@ -81,8 +81,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="container flex h-14 md:h-16 items-center justify-between px-4">
-          {/* Mobile Menu Button */}
-          <div className="flex md:hidden">
+          {/* Mobile Header */}
+          <div className="flex md:hidden items-center gap-2 min-w-0 flex-1">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -97,6 +97,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col gap-2 mt-6">
+                  <p className="px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {copy.teamPortal}
+                  </p>
                   <Button
                     variant={location.pathname === '/dashboard' ? 'secondary' : 'ghost'}
                     className="justify-start h-11"
@@ -114,25 +117,39 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     {copy.book}
                   </Button>
                   {isAdmin && (
-                    <Button
-                      variant={location.pathname === '/calendar' ? 'secondary' : 'ghost'}
-                      className="justify-start h-11"
-                      onClick={() => handleNavigation('/calendar')}
-                    >
-                      <CalendarIcon className="w-4 h-4 mr-3" />
-                      {copy.calendar}
-                    </Button>
+                    <>
+                      <p className="mt-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Admin
+                      </p>
+                      <Button
+                        variant={location.pathname === '/calendar' ? 'secondary' : 'ghost'}
+                        className="justify-start h-11"
+                        onClick={() => handleNavigation('/calendar')}
+                      >
+                        <CalendarIcon className="w-4 h-4 mr-3" />
+                        {copy.calendar}
+                      </Button>
+                      <Button
+                        variant={location.pathname === '/team' ? 'secondary' : 'ghost'}
+                        className="justify-start h-11"
+                        onClick={() => handleNavigation('/team')}
+                      >
+                        <Users className="w-4 h-4 mr-3" />
+                        {copy.team}
+                      </Button>
+                    </>
                   )}
-                  {isAdmin && (
-                    <Button
-                      variant={location.pathname === '/team' ? 'secondary' : 'ghost'}
-                      className="justify-start h-11"
-                      onClick={() => handleNavigation('/team')}
-                    >
-                      <Users className="w-4 h-4 mr-3" />
-                      {copy.team}
-                    </Button>
-                  )}
+                  <div className="border-t border-border my-4" />
+                  <div className="px-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Preferences
+                    </p>
+                    <ThemeToggle />
+                  </div>
+                  <div className="px-3 py-2">
+                    <p className="text-sm font-medium text-foreground">{displayName}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
                   <Button
                     variant={location.pathname === '/settings' ? 'secondary' : 'ghost'}
                     className="justify-start h-11"
@@ -141,11 +158,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     <SettingsIcon className="w-4 h-4 mr-3" />
                     {copy.settings}
                   </Button>
-                  <div className="border-t border-border my-4" />
-                  <div className="px-3 py-2">
-                    <p className="text-sm font-medium text-foreground">{displayName}</p>
-                    <p className="text-xs text-muted-foreground">{user?.email}</p>
-                  </div>
                   <Button
                     variant="ghost"
                     className="justify-start h-11 text-destructive hover:text-destructive"
@@ -157,10 +169,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 </nav>
               </SheetContent>
             </Sheet>
+
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Anchor className="w-4 h-4 text-primary" />
+              </div>
+              <span className="text-sm font-semibold text-foreground tracking-tight truncate">
+                Prestige Yachts
+              </span>
+            </div>
           </div>
 
           {/* Logo */}
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="hidden md:flex items-center gap-2 md:gap-3">
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <Anchor className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </div>
@@ -222,7 +243,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </Button>
           </nav>
 
-          <div className="flex items-center gap-1 md:gap-2">
+          <div className="hidden md:flex items-center gap-1 md:gap-2">
             <ThemeToggle />
 
             {/* User Menu */}
