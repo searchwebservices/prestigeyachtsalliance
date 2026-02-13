@@ -112,6 +112,7 @@ const COPY = {
     preselectInvalid:
       'This yacht is not currently eligible for internal booking. Choose another yacht or update booking settings.',
     submitError: 'Unable to submit this booking. Please try again.',
+    slotConflictHelp: 'That start time is no longer available. Please choose another start time.',
     sessionExpired: 'Your session expired. Please sign in again.',
     bookingSubmittedTitle: 'Booking submitted',
     bookingSubmittedDescription: 'Booking created successfully.',
@@ -177,6 +178,7 @@ const COPY = {
     preselectInvalid:
       'Este yate no está listo para reservas internas. Elige otro yate o actualiza su configuración de reservas.',
     submitError: 'No se pudo enviar la reserva. Intenta de nuevo.',
+    slotConflictHelp: 'Esa hora de inicio ya no está disponible. Elige otra hora de inicio.',
     sessionExpired: 'Tu sesión expiró. Inicia sesión de nuevo.',
     bookingSubmittedTitle: 'Reserva enviada',
     bookingSubmittedDescription: 'La reserva se creó correctamente.',
@@ -667,6 +669,13 @@ export default function Book() {
         if (isEndpointUnavailable(response.status, payload.error)) {
           setBlockingEndpointError(copy.endpointNotReady);
           setSubmitInlineError(copy.endpointNotReady);
+          return;
+        }
+
+        if (response.status === 409) {
+          await loadAvailability();
+          setStep(4);
+          setSubmitInlineError(`${payload.error || copy.submitError} ${copy.slotConflictHelp}`);
           return;
         }
 
