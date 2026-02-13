@@ -39,4 +39,89 @@ export type CalendarActionResult = {
   ok: boolean;
   status?: number;
   error?: string;
+  bookingUid?: string | null;
+  changeMode?: string;
+};
+
+export type ReservationCenterView = 'view' | 'edit' | 'reschedule' | 'remove_confirm' | 'submitting';
+
+export type GuestProfile = {
+  id: string | null;
+  fullName: string;
+  preferredName: string;
+  email: string;
+  phone: string;
+  whatsapp: string;
+  nationality: string;
+  preferredLanguage: string;
+  notes: string;
+};
+
+export type ReservationStay = {
+  id: string | null;
+  propertyName: string;
+  locationLabel: string;
+  checkInDate: string;
+  checkOutDate: string;
+  unitOrRoom: string;
+  notes: string;
+  sortOrder: number;
+};
+
+export type ReservationDetails = {
+  id: string | null;
+  bookingUidCurrent: string;
+  bookingUidHistory: string[];
+  yachtSlug: string;
+  yachtName: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  guestProfileId: string | null;
+  guestCount: number | null;
+  adultCount: number | null;
+  kidsCount: number | null;
+  kidsNotes: string;
+  stayingMultiplePlaces: boolean;
+  allergies: string[];
+  preferences: string[];
+  dietaryNotes: string;
+  mobilityNotes: string;
+  occasionNotes: string;
+  conciergeNotes: string;
+  internalNotes: string;
+  source: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type ReservationAuditSummary = {
+  totalChanges: number;
+  lastAction: string | null;
+  lastActionAt: string | null;
+  lastActorUserId: string | null;
+};
+
+export type ReservationRecord = {
+  reservation: ReservationDetails;
+  guest: GuestProfile;
+  stays: ReservationStay[];
+  auditSummary: ReservationAuditSummary | null;
+  completionScore: number | null;
+};
+
+export type TeamReservationOversightItem = {
+  reservationId: string | null;
+  bookingUid: string;
+  yachtSlug: string;
+  yachtName: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  guestName: string;
+  completionScore: number | null;
+  missingFields: string[];
+  lastAction: string | null;
+  lastActionAt: string | null;
+  lastUpdatedAt: string | null;
 };

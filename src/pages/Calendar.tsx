@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { addDays, addMonths, addWeeks, endOfMonth, format, startOfMonth, startOfWeek } from 'date-fns';
 import { enUS, es } from 'date-fns/locale';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -16,12 +16,17 @@ import CalendarToolbar from '@/components/admin-calendar/CalendarToolbar';
 import YachtTabs from '@/components/admin-calendar/YachtTabs';
 import TimeGrid from '@/components/admin-calendar/TimeGrid';
 import MonthGrid from '@/components/admin-calendar/MonthGrid';
-import EventDrawer from '@/components/admin-calendar/EventDrawer';
+import ReservationCenterModal from '@/components/admin-calendar/ReservationCenterModal';
 import {
   AdminCalendarEvent,
   AdminCalendarYacht,
   CalendarActionResult,
   CalendarViewMode,
+  GuestProfile,
+  ReservationAuditSummary,
+  ReservationDetails,
+  ReservationRecord,
+  ReservationStay,
 } from '@/components/admin-calendar/types';
 
 type CalendarApiResponse = {
@@ -47,6 +52,23 @@ type CalendarActionApiResponse = {
   bookingUid?: string | null;
   transactionId?: string;
   changeMode?: string;
+  error?: string;
+};
+
+type ReservationDetailsApiResponse = {
+  requestId: string;
+  reservation?: unknown;
+  guest?: unknown;
+  stays?: unknown;
+  auditSummary?: unknown;
+  completionScore?: unknown;
+  error?: string;
+};
+
+type ReservationExportApiResponse = {
+  requestId: string;
+  payload?: unknown;
+  fileName?: string;
   error?: string;
 };
 
@@ -95,22 +117,74 @@ const COPY = {
     actionSuccessRemovedTitle: 'Reservation removed',
     actionSuccessRemovedDescription: 'The reservation was removed successfully.',
     gmtLabel: 'GMT',
+    reservationEndpointNotReady:
+      'Internal reservation details endpoints are not deployed yet. Ask backend to deploy internal-reservation-details and internal-reservation-details/export.',
     drawer: {
       titleFallback: 'Booking',
+      subtitle: 'Luxury reservation control center',
       bookingUid: 'Booking UID',
       bookingId: 'Booking ID',
       yacht: 'Yacht',
       status: 'Status',
+      completion: 'Completion',
+      noAudit: 'No audit summary yet for this reservation.',
+      lockedReadOnly: 'Read-only mode: only admins can edit reservation data.',
       attendee: 'Attendee',
       attendeeEmail: 'Email',
       attendeePhone: 'Phone',
       notes: 'Notes',
       noNotes: 'No notes attached to this booking.',
       openCal: 'Open in Cal.com',
+      copyFullDetails: 'Copy full details',
+      exportCsv: 'Export CSV',
+      copiedSuccess: 'Reservation details copied to clipboard.',
+      exportedSuccess: 'Reservation details exported to CSV.',
+      detailsSaved: 'Reservation details saved successfully.',
+      detailsSaveError: 'Unable to save reservation details.',
+      exportError: 'Unable to export reservation details right now.',
+      editDetails: 'Edit details',
+      saveDetails: 'Save details',
+      savingDetails: 'Saving details...',
+      cancelEdit: 'Discard',
       when: 'When',
       duration: 'Duration',
       actionDeckTitle: 'Action Deck',
       actionDeckDescription: 'Manage this yacht reservation proactively from here.',
+      guestSectionTitle: 'Primary guest',
+      partySectionTitle: 'Party profile',
+      staysSectionTitle: 'Accommodation plan',
+      careSectionTitle: 'Guest care',
+      opsSectionTitle: 'Operations notes',
+      summarySectionTitle: 'Voyage summary',
+      primaryGuestName: 'Primary guest name',
+      preferredName: 'Preferred name',
+      email: 'Email',
+      phone: 'Phone',
+      whatsapp: 'WhatsApp',
+      nationality: 'Nationality',
+      preferredLanguage: 'Preferred language',
+      guestNotes: 'Guest notes',
+      guestCount: 'Guest count',
+      adultCount: 'Adults',
+      kidsCount: 'Kids',
+      kidsNotes: 'Kids details',
+      stayingMultiplePlaces: 'Staying in multiple places',
+      allergies: 'Allergies',
+      preferences: 'Preferences',
+      dietaryNotes: 'Dietary notes',
+      mobilityNotes: 'Mobility notes',
+      occasionNotes: 'Occasion notes',
+      conciergeNotes: 'Concierge notes',
+      internalNotes: 'Internal notes',
+      commaHint: 'Use commas to separate entries (example: none, shellfish).',
+      addStay: 'Add stay',
+      removeStay: 'Remove',
+      stayName: 'Property / Hotel',
+      stayLocation: 'Location',
+      stayCheckIn: 'Check-in',
+      stayCheckOut: 'Check-out',
+      stayUnit: 'Unit / Room',
+      stayNotes: 'Stay notes',
       changeReservation: 'Change reservation',
       removeReservation: 'Remove reservation',
       close: 'Close',
@@ -180,22 +254,74 @@ const COPY = {
     actionSuccessRemovedTitle: 'Reserva eliminada',
     actionSuccessRemovedDescription: 'La reserva se eliminó correctamente.',
     gmtLabel: 'GMT',
+    reservationEndpointNotReady:
+      'Los endpoints internos de detalles de reserva no están desplegados. Pide al backend desplegar internal-reservation-details y internal-reservation-details/export.',
     drawer: {
       titleFallback: 'Reserva',
+      subtitle: 'Centro de control de reservas de lujo',
       bookingUid: 'Booking UID',
       bookingId: 'ID de reserva',
       yacht: 'Yate',
       status: 'Estado',
+      completion: 'Completado',
+      noAudit: 'Aún no hay resumen de auditoría para esta reserva.',
+      lockedReadOnly: 'Modo solo lectura: solo admins pueden editar los detalles.',
       attendee: 'Asistente',
       attendeeEmail: 'Correo',
       attendeePhone: 'Teléfono',
       notes: 'Notas',
       noNotes: 'No hay notas en esta reserva.',
       openCal: 'Abrir en Cal.com',
+      copyFullDetails: 'Copiar detalles',
+      exportCsv: 'Exportar CSV',
+      copiedSuccess: 'Detalles de la reserva copiados al portapapeles.',
+      exportedSuccess: 'Detalles de la reserva exportados a CSV.',
+      detailsSaved: 'Detalles de la reserva guardados correctamente.',
+      detailsSaveError: 'No se pudieron guardar los detalles de la reserva.',
+      exportError: 'No se pudieron exportar los detalles de la reserva.',
+      editDetails: 'Editar detalles',
+      saveDetails: 'Guardar detalles',
+      savingDetails: 'Guardando detalles...',
+      cancelEdit: 'Descartar',
       when: 'Horario',
       duration: 'Duración',
       actionDeckTitle: 'Panel de acciones',
       actionDeckDescription: 'Gestiona esta reserva del yate de forma proactiva desde aquí.',
+      guestSectionTitle: 'Huésped principal',
+      partySectionTitle: 'Perfil del grupo',
+      staysSectionTitle: 'Plan de hospedaje',
+      careSectionTitle: 'Atención al huésped',
+      opsSectionTitle: 'Notas operativas',
+      summarySectionTitle: 'Resumen del viaje',
+      primaryGuestName: 'Nombre del huésped principal',
+      preferredName: 'Nombre preferido',
+      email: 'Correo',
+      phone: 'Teléfono',
+      whatsapp: 'WhatsApp',
+      nationality: 'Nacionalidad',
+      preferredLanguage: 'Idioma preferido',
+      guestNotes: 'Notas del huésped',
+      guestCount: 'Total de huéspedes',
+      adultCount: 'Adultos',
+      kidsCount: 'Niños',
+      kidsNotes: 'Detalles de niños',
+      stayingMultiplePlaces: 'Se hospedan en varios lugares',
+      allergies: 'Alergias',
+      preferences: 'Preferencias',
+      dietaryNotes: 'Notas dietéticas',
+      mobilityNotes: 'Notas de movilidad',
+      occasionNotes: 'Notas de ocasión',
+      conciergeNotes: 'Notas de concierge',
+      internalNotes: 'Notas internas',
+      commaHint: 'Usa comas para separar entradas (ejemplo: ninguno, mariscos).',
+      addStay: 'Agregar hospedaje',
+      removeStay: 'Quitar',
+      stayName: 'Propiedad / Hotel',
+      stayLocation: 'Ubicación',
+      stayCheckIn: 'Check-in',
+      stayCheckOut: 'Check-out',
+      stayUnit: 'Unidad / Habitación',
+      stayNotes: 'Notas de hospedaje',
       changeReservation: 'Cambiar reserva',
       removeReservation: 'Eliminar reserva',
       close: 'Cerrar',
@@ -299,6 +425,155 @@ const isEndpointUnavailable = (status: number, errorMessage?: string) => {
 };
 
 const asString = (value: unknown): string | null => (typeof value === 'string' ? value : null);
+const asNumber = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isFinite(value) ? value : null;
+const asBoolean = (value: unknown) => value === true;
+const asStringArray = (value: unknown) =>
+  Array.isArray(value) ? value.map((item) => asString(item)).filter((item): item is string => item !== null) : [];
+
+const buildFallbackReservationRecord = (event: AdminCalendarEvent): ReservationRecord => ({
+  reservation: {
+    id: null,
+    bookingUidCurrent: event.bookingUid || event.id,
+    bookingUidHistory: [],
+    yachtSlug: event.yachtSlug,
+    yachtName: event.yachtName,
+    startAt: event.startIso,
+    endAt: event.endIso,
+    status: event.status || 'booked',
+    guestProfileId: null,
+    guestCount: null,
+    adultCount: null,
+    kidsCount: null,
+    kidsNotes: '',
+    stayingMultiplePlaces: false,
+    allergies: [],
+    preferences: [],
+    dietaryNotes: '',
+    mobilityNotes: '',
+    occasionNotes: '',
+    conciergeNotes: '',
+    internalNotes: event.notes || '',
+    source: 'internal_calendar_v2',
+    createdAt: null,
+    updatedAt: null,
+  },
+  guest: {
+    id: null,
+    fullName: event.attendeeName || '',
+    preferredName: '',
+    email: event.attendeeEmail || '',
+    phone: event.attendeePhone || '',
+    whatsapp: '',
+    nationality: '',
+    preferredLanguage: '',
+    notes: '',
+  },
+  stays: [],
+  auditSummary: null,
+  completionScore: null,
+});
+
+const normalizeReservationRecord = (payload: ReservationDetailsApiResponse, event: AdminCalendarEvent): ReservationRecord => {
+  const fallback = buildFallbackReservationRecord(event);
+  const reservationRow = payload.reservation && typeof payload.reservation === 'object' ? (payload.reservation as Record<string, unknown>) : {};
+  const guestRow = payload.guest && typeof payload.guest === 'object' ? (payload.guest as Record<string, unknown>) : {};
+  const auditRaw = payload.auditSummary;
+  const auditRows =
+    Array.isArray(auditRaw) ? auditRaw.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object') : [];
+  const auditRow =
+    auditRows.length > 0
+      ? auditRows[0]
+      : auditRaw && typeof auditRaw === 'object'
+        ? (auditRaw as Record<string, unknown>)
+        : null;
+
+  const reservation: ReservationDetails = {
+    ...fallback.reservation,
+    id: asString(reservationRow.id),
+    bookingUidCurrent:
+      asString(reservationRow.bookingUidCurrent) ||
+      asString(reservationRow.booking_uid_current) ||
+      fallback.reservation.bookingUidCurrent,
+    bookingUidHistory: asStringArray(reservationRow.bookingUidHistory ?? reservationRow.booking_uid_history),
+    yachtSlug: asString(reservationRow.yachtSlug ?? reservationRow.yacht_slug) || fallback.reservation.yachtSlug,
+    yachtName: asString(reservationRow.yachtName ?? reservationRow.yacht_name) || fallback.reservation.yachtName,
+    startAt: asString(reservationRow.startAt ?? reservationRow.start_at) || fallback.reservation.startAt,
+    endAt: asString(reservationRow.endAt ?? reservationRow.end_at) || fallback.reservation.endAt,
+    status: asString(reservationRow.status) || fallback.reservation.status,
+    guestProfileId: asString(reservationRow.guestProfileId ?? reservationRow.guest_profile_id),
+    guestCount: asNumber(reservationRow.guestCount ?? reservationRow.guest_count),
+    adultCount: asNumber(reservationRow.adultCount ?? reservationRow.adult_count),
+    kidsCount: asNumber(reservationRow.kidsCount ?? reservationRow.kids_count),
+    kidsNotes: asString(reservationRow.kidsNotes ?? reservationRow.kids_notes) || '',
+    stayingMultiplePlaces: asBoolean(reservationRow.stayingMultiplePlaces ?? reservationRow.staying_multiple_places),
+    allergies: asStringArray(reservationRow.allergies),
+    preferences: asStringArray(reservationRow.preferences),
+    dietaryNotes: asString(reservationRow.dietaryNotes ?? reservationRow.dietary_notes) || '',
+    mobilityNotes: asString(reservationRow.mobilityNotes ?? reservationRow.mobility_notes) || '',
+    occasionNotes: asString(reservationRow.occasionNotes ?? reservationRow.occasion_notes) || '',
+    conciergeNotes: asString(reservationRow.conciergeNotes ?? reservationRow.concierge_notes) || '',
+    internalNotes: asString(reservationRow.internalNotes ?? reservationRow.internal_notes) || fallback.reservation.internalNotes,
+    source: asString(reservationRow.source) || fallback.reservation.source,
+    createdAt: asString(reservationRow.createdAt ?? reservationRow.created_at),
+    updatedAt: asString(reservationRow.updatedAt ?? reservationRow.updated_at),
+  };
+
+  const guest: GuestProfile = {
+    ...fallback.guest,
+    id: asString(guestRow.id),
+    fullName: asString(guestRow.fullName ?? guestRow.full_name) || fallback.guest.fullName,
+    preferredName: asString(guestRow.preferredName ?? guestRow.preferred_name) || '',
+    email: asString(guestRow.email) || fallback.guest.email,
+    phone: asString(guestRow.phone) || fallback.guest.phone,
+    whatsapp: asString(guestRow.whatsapp) || '',
+    nationality: asString(guestRow.nationality) || '',
+    preferredLanguage: asString(guestRow.preferredLanguage ?? guestRow.preferred_language) || '',
+    notes: asString(guestRow.notes) || '',
+  };
+
+  const stays: ReservationStay[] = Array.isArray(payload.stays)
+    ? payload.stays.map((item, index) => {
+        const stay = item && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+        return {
+          id: asString(stay.id),
+          propertyName: asString(stay.propertyName ?? stay.property_name) || '',
+          locationLabel: asString(stay.locationLabel ?? stay.location_label) || '',
+          checkInDate: asString(stay.checkInDate ?? stay.check_in_date) || '',
+          checkOutDate: asString(stay.checkOutDate ?? stay.check_out_date) || '',
+          unitOrRoom: asString(stay.unitOrRoom ?? stay.unit_or_room) || '',
+          notes: asString(stay.notes) || '',
+          sortOrder: asNumber(stay.sortOrder ?? stay.sort_order) ?? index,
+        };
+      })
+    : [];
+
+  const auditSummary: ReservationAuditSummary | null = auditRow
+    ? {
+        totalChanges:
+          asNumber(auditRow.totalChanges ?? auditRow.total_changes) ??
+          (auditRows.length > 0 ? auditRows.length : 1),
+        lastAction: asString(auditRow.lastAction ?? auditRow.last_action ?? auditRow.action),
+        lastActionAt: asString(auditRow.lastActionAt ?? auditRow.last_action_at ?? auditRow.created_at),
+        lastActorUserId: asString(auditRow.lastActorUserId ?? auditRow.last_actor_user_id ?? auditRow.actor_user_id),
+      }
+    : null;
+
+  const completionRaw = payload.completionScore;
+  const completionScore =
+    asNumber(completionRaw) ??
+    (completionRaw && typeof completionRaw === 'object'
+      ? asNumber((completionRaw as Record<string, unknown>).score)
+      : null);
+
+  return {
+    reservation,
+    guest,
+    stays,
+    auditSummary,
+    completionScore,
+  };
+};
 
 const normalizeEvents = (value: unknown): AdminCalendarEvent[] => {
   if (!Array.isArray(value)) return [];
@@ -348,6 +623,7 @@ const normalizeEvents = (value: unknown): AdminCalendarEvent[] => {
 
 export default function Calendar() {
   const { isAdmin, isLoading: authLoading } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { language } = useLanguage();
   const { trackEvent } = useActivityTracker();
   const { toast } = useToast();
@@ -361,6 +637,9 @@ export default function Calendar() {
   const [events, setEvents] = useState<AdminCalendarEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<AdminCalendarEvent | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedReservation, setSelectedReservation] = useState<ReservationRecord | null>(null);
+  const [reservationLoading, setReservationLoading] = useState(false);
+  const [reservationError, setReservationError] = useState<string | null>(null);
   const [drawerMonthDate, setDrawerMonthDate] = useState<Date>(new Date());
   const [drawerAvailabilityDays, setDrawerAvailabilityDays] = useState<Record<string, DayAvailability>>({});
   const [drawerAvailabilityLoading, setDrawerAvailabilityLoading] = useState(false);
@@ -373,6 +652,8 @@ export default function Calendar() {
   const hasTrackedPageView = useRef(false);
   const lastTrackedViewMode = useRef<CalendarViewMode | null>(null);
   const lastTrackedRangeKey = useRef<string | null>(null);
+  const deepLinkHandledKey = useRef<string | null>(null);
+  const deepLinkDateApplied = useRef<string | null>(null);
   const todayDateKey = useMemo(() => toTimeZoneParts(new Date().toISOString(), BOOKING_TIMEZONE).dateKey, []);
 
   const visibleDates = useMemo(() => {
@@ -464,10 +745,10 @@ export default function Calendar() {
   }, [copy.defaultError]);
 
   const loadEvents = useCallback(
-    async (silent = false) => {
+    async (silent = false): Promise<AdminCalendarEvent[]> => {
       if (!selectedYachtSlug) {
         setEvents([]);
-        return;
+        return [];
       }
 
       if (!silent) setLoadingEvents(true);
@@ -479,7 +760,7 @@ export default function Calendar() {
         if (!accessToken) {
           setError(copy.sessionExpired);
           setEvents([]);
-          return;
+          return [];
         }
 
         const response = await fetch(
@@ -500,24 +781,27 @@ export default function Calendar() {
           if (isEndpointUnavailable(response.status, payload.error)) {
             setError(copy.endpointNotReady);
             setEvents([]);
-            return;
+            return [];
           }
 
           if (response.status === 401) {
             setError(copy.sessionExpired);
             setEvents([]);
-            return;
+            return [];
           }
 
           throw new Error(payload.error || copy.defaultError);
         }
 
         setError(null);
-        setEvents(normalizeEvents(payload.events));
+        const normalizedEvents = normalizeEvents(payload.events);
+        setEvents(normalizedEvents);
+        return normalizedEvents;
       } catch (loadError) {
         console.error('Failed to load calendar bookings:', loadError);
         setError(loadError instanceof Error ? loadError.message : copy.defaultError);
         setEvents([]);
+        return [];
       } finally {
         if (!silent) setLoadingEvents(false);
       }
@@ -598,9 +882,97 @@ export default function Calendar() {
     [copy.defaultError, copy.endpointNotReady, copy.sessionExpired]
   );
 
+  const loadReservationDetails = useCallback(
+    async ({
+      bookingUid,
+      slug,
+      event,
+      silent = false,
+    }: {
+      bookingUid: string;
+      slug: string;
+      event: AdminCalendarEvent;
+      silent?: boolean;
+    }) => {
+      if (!bookingUid || !slug) return;
+
+      if (!silent) setReservationLoading(true);
+
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+
+        if (!accessToken) {
+          setReservationError(copy.sessionExpired);
+          setSelectedReservation(buildFallbackReservationRecord(event));
+          return;
+        }
+
+        const response = await fetch(
+          `${apiBase}/internal-reservation-details?bookingUid=${encodeURIComponent(bookingUid)}&slug=${encodeURIComponent(slug)}`,
+          {
+            method: 'GET',
+            headers: {
+              apikey: anonKey,
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        const payload = (await response.json().catch(() => ({}))) as ReservationDetailsApiResponse;
+
+        if (!response.ok) {
+          if (isEndpointUnavailable(response.status, payload.error)) {
+            setReservationError(copy.reservationEndpointNotReady);
+            setSelectedReservation(buildFallbackReservationRecord(event));
+            return;
+          }
+          if (response.status === 401) {
+            setReservationError(copy.sessionExpired);
+            setSelectedReservation(buildFallbackReservationRecord(event));
+            return;
+          }
+          if (response.status === 403) {
+            setReservationError(copy.permissionDenied);
+            setSelectedReservation(buildFallbackReservationRecord(event));
+            return;
+          }
+          throw new Error(payload.error || copy.defaultError);
+        }
+
+        setReservationError(null);
+        setSelectedReservation(normalizeReservationRecord(payload, event));
+      } catch (loadError) {
+        console.error('Failed to load reservation details:', loadError);
+        setReservationError(loadError instanceof Error ? loadError.message : copy.defaultError);
+        setSelectedReservation(buildFallbackReservationRecord(event));
+      } finally {
+        if (!silent) setReservationLoading(false);
+      }
+    },
+    [copy.defaultError, copy.permissionDenied, copy.reservationEndpointNotReady, copy.sessionExpired]
+  );
+
   useEffect(() => {
     void loadYachts();
   }, [loadYachts]);
+
+  useEffect(() => {
+    const deepLinkSlug = searchParams.get('slug');
+    if (!deepLinkSlug) return;
+    if (!yachts.some((yacht) => yacht.slug === deepLinkSlug)) return;
+    setSelectedYachtSlug((current) => (current === deepLinkSlug ? current : deepLinkSlug));
+  }, [searchParams, yachts]);
+
+  useEffect(() => {
+    const deepLinkDate = searchParams.get('date');
+    if (!deepLinkDate) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(deepLinkDate)) return;
+    if (deepLinkDateApplied.current === deepLinkDate) return;
+    deepLinkDateApplied.current = deepLinkDate;
+    setAnchorDate(parseDateKeyToDate(deepLinkDate));
+  }, [searchParams]);
 
   useEffect(() => {
     void loadEvents();
@@ -694,23 +1066,41 @@ export default function Calendar() {
     setAnchorDate(new Date());
   };
 
-  const handleEventClick = (event: AdminCalendarEvent) => {
-    setSelectedEvent(event);
-    setDrawerOpen(true);
-    setDrawerAvailabilityError(null);
+  const handleEventClick = useCallback(
+    (event: AdminCalendarEvent) => {
+      setSelectedEvent(event);
+      setDrawerOpen(true);
+      setDrawerAvailabilityError(null);
+      setReservationError(null);
+      setSelectedReservation(null);
 
-    const eventDate = parseDateKeyToDate(toTimeZoneParts(event.startIso, BOOKING_TIMEZONE).dateKey);
-    setDrawerMonthDate(eventDate);
-    void loadDrawerAvailability({ monthDate: eventDate, yachtSlug: event.yachtSlug });
+      const eventDate = parseDateKeyToDate(toTimeZoneParts(event.startIso, BOOKING_TIMEZONE).dateKey);
+      setDrawerMonthDate(eventDate);
+      void loadDrawerAvailability({ monthDate: eventDate, yachtSlug: event.yachtSlug });
+      void loadReservationDetails({
+        bookingUid: event.bookingUid || event.id,
+        slug: event.yachtSlug,
+        event,
+      });
 
-    void trackEvent('calendar_event_opened', {
-      booking_uid: event.bookingUid || '',
-      view_mode: viewMode,
-      yacht_slug: event.yachtSlug || selectedYachtSlug || '',
-      range_start: rangeStart,
-      range_end: rangeEnd,
-    });
-  };
+      void trackEvent('calendar_event_opened', {
+        booking_uid: event.bookingUid || '',
+        view_mode: viewMode,
+        yacht_slug: event.yachtSlug || selectedYachtSlug || '',
+        range_start: rangeStart,
+        range_end: rangeEnd,
+      });
+    },
+    [
+      loadDrawerAvailability,
+      loadReservationDetails,
+      rangeEnd,
+      rangeStart,
+      selectedYachtSlug,
+      trackEvent,
+      viewMode,
+    ]
+  );
 
   const handleDrawerPreviousMonth = () => {
     setDrawerMonthDate((current) => {
@@ -732,6 +1122,32 @@ export default function Calendar() {
       return next;
     });
   };
+
+  useEffect(() => {
+    const deepLinkBookingUid = searchParams.get('bookingUid');
+    const deepLinkSlug = searchParams.get('slug');
+    if (!deepLinkBookingUid || !deepLinkSlug) return;
+    if (selectedYachtSlug !== deepLinkSlug) return;
+
+    const key = `${deepLinkBookingUid}:${deepLinkSlug}:${rangeStart}:${rangeEnd}`;
+    if (deepLinkHandledKey.current === key) return;
+
+    const found = events.find(
+      (event) =>
+        event.bookingUid === deepLinkBookingUid ||
+        event.id === deepLinkBookingUid
+    );
+    if (!found) return;
+
+    deepLinkHandledKey.current = key;
+    handleEventClick(found);
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('bookingUid');
+    nextParams.delete('slug');
+    nextParams.delete('date');
+    setSearchParams(nextParams, { replace: true });
+  }, [events, handleEventClick, rangeEnd, rangeStart, searchParams, selectedYachtSlug, setSearchParams]);
 
   const handleSubmitReschedule = useCallback(
     async ({
@@ -803,9 +1219,30 @@ export default function Calendar() {
           return { ok: false, status: response.status, error: payload.error || copy.defaultError };
         }
 
-        await loadEvents(true);
-        setDrawerOpen(false);
-        setSelectedEvent(null);
+        const refreshedEvents = await loadEvents(true);
+        const nextBookingUid = payload.bookingUid || bookingUid;
+        const nextEvent =
+          refreshedEvents.find((item) => item.bookingUid === nextBookingUid || item.id === nextBookingUid) ||
+          refreshedEvents.find((item) => item.bookingUid === bookingUid || item.id === bookingUid) ||
+          null;
+
+        if (nextEvent) {
+          setSelectedEvent(nextEvent);
+          await loadReservationDetails({
+            bookingUid: nextEvent.bookingUid || nextEvent.id,
+            slug: nextEvent.yachtSlug,
+            event: nextEvent,
+            silent: true,
+          });
+        } else if (selectedEvent) {
+          await loadReservationDetails({
+            bookingUid: nextBookingUid,
+            slug: selectedEvent.yachtSlug,
+            event: selectedEvent,
+            silent: true,
+          });
+        }
+
         toast({
           title: copy.actionSuccessRescheduledTitle,
           description: copy.actionSuccessRescheduledDescription,
@@ -822,7 +1259,7 @@ export default function Calendar() {
           new_booking_uid: payload.bookingUid || '',
         });
 
-        return { ok: true, status: 200 };
+        return { ok: true, status: 200, bookingUid: nextBookingUid, changeMode: payload.changeMode };
       } catch (rescheduleError) {
         return {
           ok: false,
@@ -842,8 +1279,10 @@ export default function Calendar() {
       drawerMonthDate,
       loadDrawerAvailability,
       loadEvents,
+      loadReservationDetails,
       rangeEnd,
       rangeStart,
+      selectedEvent,
       toast,
       trackEvent,
     ]
@@ -903,9 +1342,27 @@ export default function Calendar() {
           return { ok: false, status: response.status, error: payload.error || copy.defaultError };
         }
 
-        await loadEvents(true);
-        setDrawerOpen(false);
-        setSelectedEvent(null);
+        const refreshedEvents = await loadEvents(true);
+        const nextEvent =
+          refreshedEvents.find((item) => item.bookingUid === bookingUid || item.id === bookingUid) || null;
+
+        if (nextEvent) {
+          setSelectedEvent(nextEvent);
+          await loadReservationDetails({
+            bookingUid: nextEvent.bookingUid || nextEvent.id,
+            slug: nextEvent.yachtSlug,
+            event: nextEvent,
+            silent: true,
+          });
+        } else if (selectedEvent) {
+          await loadReservationDetails({
+            bookingUid,
+            slug: selectedEvent.yachtSlug,
+            event: selectedEvent,
+            silent: true,
+          });
+        }
+
         toast({
           title: copy.actionSuccessRemovedTitle,
           description: copy.actionSuccessRemovedDescription,
@@ -918,7 +1375,7 @@ export default function Calendar() {
           range_end: rangeEnd,
         });
 
-        return { ok: true, status: 200 };
+        return { ok: true, status: 200, bookingUid };
       } catch (cancelError) {
         return {
           ok: false,
@@ -935,11 +1392,202 @@ export default function Calendar() {
       copy.permissionDenied,
       copy.sessionExpired,
       loadEvents,
+      loadReservationDetails,
       rangeEnd,
       rangeStart,
+      selectedEvent,
       toast,
       trackEvent,
     ]
+  );
+
+  const handleRefreshReservationDetails = useCallback(
+    async ({ bookingUid, slug }: { bookingUid: string; slug: string }) => {
+      const activeEvent =
+        selectedEvent && selectedEvent.yachtSlug === slug
+          ? selectedEvent
+          : events.find((event) => event.bookingUid === bookingUid || event.id === bookingUid) || null;
+      if (!activeEvent) return;
+      await loadReservationDetails({
+        bookingUid,
+        slug,
+        event: activeEvent,
+        silent: true,
+      });
+    },
+    [events, loadReservationDetails, selectedEvent]
+  );
+
+  const handleSaveReservationDetails = useCallback(
+    async ({
+      event,
+      record,
+    }: {
+      event: AdminCalendarEvent;
+      record: ReservationRecord;
+    }): Promise<CalendarActionResult> => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+
+        if (!accessToken) {
+          return { ok: false, status: 401, error: copy.sessionExpired };
+        }
+
+        const response = await fetch(`${apiBase}/internal-reservation-details`, {
+          method: 'PUT',
+          headers: {
+            apikey: anonKey,
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            slug: event.yachtSlug,
+            bookingUid: record.reservation.bookingUidCurrent || event.bookingUid || event.id,
+            reservation: {
+              guest_count: record.reservation.guestCount,
+              adult_count: record.reservation.adultCount,
+              kids_count: record.reservation.kidsCount,
+              kids_notes: record.reservation.kidsNotes,
+              staying_multiple_places: record.reservation.stayingMultiplePlaces,
+              allergies: record.reservation.allergies,
+              preferences: record.reservation.preferences,
+              dietary_notes: record.reservation.dietaryNotes,
+              mobility_notes: record.reservation.mobilityNotes,
+              occasion_notes: record.reservation.occasionNotes,
+              concierge_notes: record.reservation.conciergeNotes,
+              internal_notes: record.reservation.internalNotes,
+            },
+            guest: {
+              full_name: record.guest.fullName,
+              preferred_name: record.guest.preferredName,
+              email: record.guest.email,
+              phone: record.guest.phone,
+              whatsapp: record.guest.whatsapp,
+              nationality: record.guest.nationality,
+              preferred_language: record.guest.preferredLanguage,
+              notes: record.guest.notes,
+            },
+            stays: record.stays.map((stay, index) => ({
+              property_name: stay.propertyName,
+              location_label: stay.locationLabel,
+              check_in_date: stay.checkInDate || null,
+              check_out_date: stay.checkOutDate || null,
+              unit_or_room: stay.unitOrRoom,
+              notes: stay.notes,
+              sort_order: stay.sortOrder ?? index,
+            })),
+          }),
+        });
+
+        const payload = (await response.json().catch(() => ({}))) as ReservationDetailsApiResponse;
+
+        if (!response.ok) {
+          if (isEndpointUnavailable(response.status, payload.error)) {
+            return { ok: false, status: response.status, error: copy.reservationEndpointNotReady };
+          }
+          if (response.status === 401) {
+            return { ok: false, status: 401, error: copy.sessionExpired };
+          }
+          if (response.status === 403) {
+            return { ok: false, status: 403, error: copy.permissionDenied };
+          }
+          return { ok: false, status: response.status, error: payload.error || copy.defaultError };
+        }
+
+        setReservationError(null);
+        setSelectedReservation(normalizeReservationRecord(payload, event));
+        return { ok: true, status: 200, bookingUid: record.reservation.bookingUidCurrent || event.bookingUid };
+      } catch (saveError) {
+        return {
+          ok: false,
+          status: 500,
+          error: saveError instanceof Error ? saveError.message : copy.defaultError,
+        };
+      }
+    },
+    [copy.defaultError, copy.permissionDenied, copy.reservationEndpointNotReady, copy.sessionExpired]
+  );
+
+  const handleExportReservationDetails = useCallback(
+    async ({
+      event,
+      record,
+      format,
+    }: {
+      event: AdminCalendarEvent;
+      record: ReservationRecord;
+      format: 'copy' | 'csv';
+    }) => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+
+        if (!accessToken) {
+          return { ok: false, error: copy.sessionExpired };
+        }
+
+        const response = await fetch(`${apiBase}/internal-reservation-details/export`, {
+          method: 'POST',
+          headers: {
+            apikey: anonKey,
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            slug: event.yachtSlug,
+            bookingUid: record.reservation.bookingUidCurrent || event.bookingUid || event.id,
+            format,
+          }),
+        });
+
+        const payload = (await response.json().catch(() => ({}))) as ReservationExportApiResponse;
+
+        if (!response.ok) {
+          if (isEndpointUnavailable(response.status, payload.error)) {
+            return {
+              ok: true,
+              payload: {
+                reservation: record.reservation,
+                guest: record.guest,
+                stays: record.stays,
+                completionScore: record.completionScore,
+                auditSummary: record.auditSummary,
+              },
+              fileName: `reservation-${record.reservation.bookingUidCurrent || event.id}.csv`,
+            };
+          }
+          if (response.status === 401) {
+            return { ok: false, error: copy.sessionExpired };
+          }
+          if (response.status === 403) {
+            return { ok: false, error: copy.permissionDenied };
+          }
+          return { ok: false, error: payload.error || copy.defaultError };
+        }
+
+        return {
+          ok: true,
+          payload:
+            payload.payload && typeof payload.payload === 'object'
+              ? (payload.payload as Record<string, unknown>)
+              : {
+                  reservation: record.reservation,
+                  guest: record.guest,
+                  stays: record.stays,
+                  completionScore: record.completionScore,
+                  auditSummary: record.auditSummary,
+                },
+          fileName: payload.fileName || `reservation-${record.reservation.bookingUidCurrent || event.id}.csv`,
+        };
+      } catch (exportError) {
+        return {
+          ok: false,
+          error: exportError instanceof Error ? exportError.message : copy.defaultError,
+        };
+      }
+    },
+    [copy.defaultError, copy.permissionDenied, copy.sessionExpired]
   );
 
   const gmtLabel = useMemo(() => {
@@ -1058,10 +1706,14 @@ export default function Calendar() {
         </Card>
       </div>
 
-      <EventDrawer
+      <ReservationCenterModal
         event={selectedEvent}
         open={drawerOpen}
         timezone={BOOKING_TIMEZONE}
+        canEdit={isAdmin}
+        reservation={selectedReservation}
+        detailsLoading={reservationLoading}
+        detailsError={reservationError}
         availability={{
           monthDate: drawerMonthDate,
           monthLabel: drawerMonthLabel,
@@ -1074,12 +1726,17 @@ export default function Calendar() {
         copy={copy.drawer}
         onPreviousMonth={handleDrawerPreviousMonth}
         onNextMonth={handleDrawerNextMonth}
+        onSaveDetails={handleSaveReservationDetails}
+        onExportDetails={handleExportReservationDetails}
+        onRefreshReservationDetails={handleRefreshReservationDetails}
         onSubmitReschedule={handleSubmitReschedule}
         onSubmitCancel={handleSubmitCancel}
         onOpenChange={(open) => {
           setDrawerOpen(open);
           if (!open) {
             setSelectedEvent(null);
+            setSelectedReservation(null);
+            setReservationError(null);
             setDrawerAvailabilityError(null);
             setDrawerAvailabilityDays({});
           }
