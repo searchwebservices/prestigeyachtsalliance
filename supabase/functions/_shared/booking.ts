@@ -73,7 +73,8 @@ export class CalApiError extends Error {
 }
 
 const CORS_ALLOWED_HEADERS = 'authorization, x-client-info, apikey, content-type, x-request-id';
-const CORS_ALLOWED_METHODS = 'GET,POST,OPTIONS';
+// Shared across internal/public edge functions; include mutation verbs used by internal APIs.
+const CORS_ALLOWED_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS';
 const DEFAULT_CAL_API_VERSION = '2024-08-13';
 
 const toTrimmed = (value: string) => value.trim();
