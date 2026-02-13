@@ -138,16 +138,6 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUserUpdate }: Us
   const [editName, setEditName] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  useEffect(() => {
-    if (!user || !open) return;
-
-    setEditName(user.full_name || '');
-    setIsEditing(false);
-    setActiveTab('overview');
-    void fetchUserActivity(user.id);
-    void fetchOversight(user.id, oversightFrom, oversightTo);
-  }, [fetchOversight, fetchUserActivity, open, oversightFrom, oversightTo, user]);
-
   const getAuthHeaders = useCallback(async () => {
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
@@ -226,6 +216,16 @@ export function UserDetailsDialog({ user, open, onOpenChange, onUserUpdate }: Us
       setOversightLoading(false);
     }
   }, [getAuthHeaders]);
+
+  useEffect(() => {
+    if (!user || !open) return;
+
+    setEditName(user.full_name || '');
+    setIsEditing(false);
+    setActiveTab('overview');
+    void fetchUserActivity(user.id);
+    void fetchOversight(user.id, oversightFrom, oversightTo);
+  }, [fetchOversight, fetchUserActivity, open, oversightFrom, oversightTo, user]);
 
   const handleSaveProfile = async () => {
     if (!user) return;
