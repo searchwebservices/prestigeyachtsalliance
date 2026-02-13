@@ -1,7 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { addDays, startOfMonth, endOfMonth, getDay, format, isSameMonth } from 'date-fns';
 import { AdminCalendarEvent } from './types';
 import { Badge } from '@/components/ui/badge';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 
 type Copy = {
@@ -61,6 +69,7 @@ export default function MonthGrid({
   copy,
   onEventClick,
 }: Props) {
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const monthStart = startOfMonth(anchorDate);
   const monthEnd = endOfMonth(anchorDate);
   const gridStart = addDays(monthStart, -getDay(monthStart));
@@ -84,6 +93,13 @@ export default function MonthGrid({
   }, [events, timezone]);
 
   const todayKey = toDateKey(new Date().toISOString(), timezone);
+  const selectedDateEvents = selectedDateKey ? eventsByDate.get(selectedDateKey) || [] : [];
+  const selectedDate = selectedDateKey ? new Date(`${selectedDateKey}T00:00:00`) : null;
+  const dateLabelFormatter = new Intl.DateTimeFormat(language === 'es' ? 'es-ES' : 'en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
 
   if (loading) {
     return (
@@ -106,7 +122,7 @@ export default function MonthGrid({
         ))}
       </div>
 
-      <div className="grid grid-cols-7">
+      <div className="hidden grid-cols-7 md:grid">
         {cells.map((cellDate) => {
           const dateKey = format(cellDate, 'yyyy-MM-dd');
           const inMonth = isSameMonth(cellDate, anchorDate);
@@ -158,6 +174,92 @@ export default function MonthGrid({
           );
         })}
       </div>
+
+      <div className="grid grid-cols-7 md:hidden">
+        {cells.map((cellDate) => {
+          const dateKey = format(cellDate, 'yyyy-MM-dd');
+          const inMonth = isSameMonth(cellDate, anchorDate);
+          const isToday = dateKey === todayKey;
+          const dayEvents = eventsByDate.get(dateKey) || [];
+
+          return (
+            <button
+              key={dateKey}
+              type="button"
+              onClick={() => setSelectedDateKey(dateKey)}
+              className={cn(
+                'min-h-[88px] border-b border-r border-border/60 p-2 text-left last:border-r-0',
+                !inMonth && 'bg-muted/20'
+              )}
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <span
+                  className={cn(
+                    'inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold',
+                    isToday && 'bg-primary text-primary-foreground',
+                    !isToday && inMonth && 'text-foreground',
+                    !isToday && !inMonth && 'text-muted-foreground/50'
+                  )}
+                >
+                  {format(cellDate, 'd')}
+                </span>
+                {dayEvents.length > 0 && (
+                  <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px] font-medium">
+                    {dayEvents.length} {language === 'es' ? 'reservas' : 'bookings'}
+                  </Badge>
+                )}
+              </div>
+              {dayEvents.length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {toTimeParts(dayEvents[0].startIso, timezone)}
+                  {dayEvents.length > 1 ? ` • +${dayEvents.length - 1}` : ''}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground/70">&nbsp;</p>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <Drawer open={Boolean(selectedDateKey)} onOpenChange={(open) => !open && setSelectedDateKey(null)}>
+        <DrawerContent className="md:hidden">
+          <DrawerHeader className="text-left">
+            <DrawerTitle>
+              {selectedDate ? dateLabelFormatter.format(selectedDate) : language === 'es' ? 'Eventos' : 'Events'}
+            </DrawerTitle>
+            <DrawerDescription>
+              {selectedDateEvents.length > 0
+                ? `${selectedDateEvents.length} ${language === 'es' ? 'reservas programadas' : 'bookings scheduled'}`
+                : copy.empty}
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="max-h-[55vh] space-y-2 overflow-y-auto px-4 pb-6">
+            {selectedDateEvents.map((event) => (
+              <DrawerClose asChild key={event.id}>
+                <button
+                  type="button"
+                  onClick={() => onEventClick(event)}
+                  className="flex w-full items-start gap-2 rounded-lg border border-border/70 px-3 py-3 text-left"
+                >
+                  <span className={cn('mt-1 h-2 w-2 shrink-0 rounded-full', statusDot(event.status))} />
+                  <span className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">{event.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {toTimeParts(event.startIso, timezone)} · {event.yachtName}
+                    </p>
+                  </span>
+                </button>
+              </DrawerClose>
+            ))}
+            {selectedDateEvents.length === 0 && (
+              <p className="rounded-lg border border-dashed border-border/70 px-3 py-6 text-center text-sm text-muted-foreground">
+                {copy.empty}
+              </p>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {events.length === 0 && (
         <div className="border-t border-border/70 p-4 text-sm text-muted-foreground">
