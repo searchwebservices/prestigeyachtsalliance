@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.internal-calendar-bookings]
 verify_jwt = false
+
+[functions.internal-calendar-booking-cancel]
+verify_jwt = false
+
+[functions.internal-calendar-booking-reschedule]
+verify_jwt = false

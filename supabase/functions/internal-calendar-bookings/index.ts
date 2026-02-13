@@ -204,6 +204,25 @@ Deno.serve(async (req) => {
     return json(req, 401, { error: 'Unauthorized', requestId });
   }
 
+  // ── Admin role check ──
+  const { data: roleRow } = await serviceSupabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', user.id)
+    .eq('role', 'admin')
+    .maybeSingle();
+
+  if (!roleRow) {
+    await logBookingRequest({
+      supabase: serviceSupabase,
+      endpoint: 'internal-calendar-bookings',
+      requestId,
+      statusCode: 403,
+      details: { reason: 'forbidden_non_admin', userId: user.id },
+    });
+    return json(req, 403, { error: 'Admin access required', requestId });
+  }
+
   try {
     const url = new URL(req.url);
     const slug = url.searchParams.get('slug')?.trim();
