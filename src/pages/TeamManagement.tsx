@@ -182,13 +182,13 @@ export default function TeamManagement() {
     <DashboardLayout>
       <div className="space-y-4 md:space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3 md:gap-4">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate('/dashboard')}
-              className="shrink-0 h-9 w-9"
+              className="shrink-0 h-10 w-10 sm:h-11 sm:w-11 md:h-9 md:w-9"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -203,12 +203,24 @@ export default function TeamManagement() {
             </div>
           </div>
           
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleCopyTable} disabled={loading || users.length === 0} className="h-9">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-auto md:flex-nowrap md:justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyTable}
+              disabled={loading || users.length === 0}
+              className="h-11 w-full sm:h-10 sm:w-auto md:h-9"
+            >
               <Copy className="h-4 w-4 mr-2" />
               Copy
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={loading || users.length === 0} className="h-9">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              disabled={loading || users.length === 0}
+              className="h-11 w-full sm:h-10 sm:w-auto md:h-9"
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
