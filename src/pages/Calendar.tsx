@@ -94,6 +94,7 @@ type TimeMarker = {
 
 const apiBase = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const EVENT_TITLE_OVERRIDES_STORAGE_KEY = "adminCalendarEventTitleOverrides";
 const monthKeyFromDate = (value: Date) => format(value, "yyyy-MM");
 const parseDateKeyToDate = (dateKey: string) => {
   const [yearRaw, monthRaw, dayRaw] = dateKey.split("-");
@@ -199,6 +200,8 @@ const COPY = {
       occasionNotes: "Occasion notes",
       conciergeNotes: "Concierge notes",
       internalNotes: "Internal notes",
+      internalEventName: "Internal event name",
+      internalEventNamePlaceholder: "Name this reservation for the team",
       commaHint: "Use commas to separate entries (example: none, shellfish).",
       addStay: "Add stay",
       removeStay: "Remove",
@@ -349,6 +352,8 @@ const COPY = {
       occasionNotes: "Notas de ocasión",
       conciergeNotes: "Notas de concierge",
       internalNotes: "Notas internas",
+      internalEventName: "Nombre interno del evento",
+      internalEventNamePlaceholder: "Nombra esta reserva para el equipo",
       commaHint:
         "Usa comas para separar entradas (ejemplo: ninguno, mariscos).",
       addStay: "Agregar hospedaje",
@@ -761,6 +766,9 @@ export default function Calendar() {
     null,
   );
   const [events, setEvents] = useState<AdminCalendarEvent[]>([]);
+  const [eventTitleOverrides, setEventTitleOverrides] = useState<
+    Record<string, string>
+  >({});
   const [selectedEvent, setSelectedEvent] = useState<AdminCalendarEvent | null>(
     null,
   );
@@ -778,6 +786,49 @@ export default function Calendar() {
   const [drawerAvailabilityError, setDrawerAvailabilityError] = useState<
     string | null
   >(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(
+        EVENT_TITLE_OVERRIDES_STORAGE_KEY,
+      );
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (parsed && typeof parsed === "object") {
+        setEventTitleOverrides(parsed as Record<string, string>);
+      }
+    } catch {
+      // ignore malformed local storage content
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      EVENT_TITLE_OVERRIDES_STORAGE_KEY,
+      JSON.stringify(eventTitleOverrides),
+    );
+  }, [eventTitleOverrides]);
+
+  const getEventDisplayTitle = useCallback(
+    (event: AdminCalendarEvent) => {
+      const overrideKey = event.bookingUid || event.id;
+      const override = eventTitleOverrides[overrideKey]?.trim();
+      return override || event.title;
+    },
+    [eventTitleOverrides],
+  );
+
+  const eventsWithDisplayTitles = useMemo(
+    () => events.map((event) => ({ ...event, title: getEventDisplayTitle(event) })),
+    [events, getEventDisplayTitle],
+  );
+
+  const selectedEventWithDisplayTitle = useMemo(() => {
+    if (!selectedEvent) return null;
+    return { ...selectedEvent, title: getEventDisplayTitle(selectedEvent) };
+  }, [getEventDisplayTitle, selectedEvent]);
 
   const [loadingYachts, setLoadingYachts] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -1330,7 +1381,7 @@ export default function Calendar() {
     const key = `${deepLinkBookingUid}:${deepLinkSlug}:${rangeStart}:${rangeEnd}`;
     if (deepLinkHandledKey.current === key) return;
 
-    const found = events.find(
+    const found = eventsWithDisplayTitles.find(
       (event) =>
         event.bookingUid === deepLinkBookingUid ||
         event.id === deepLinkBookingUid,
@@ -1346,7 +1397,7 @@ export default function Calendar() {
     nextParams.delete("date");
     setSearchParams(nextParams, { replace: true });
   }, [
-    events,
+    eventsWithDisplayTitles,
     handleEventClick,
     rangeEnd,
     rangeStart,
@@ -1887,6 +1938,24 @@ export default function Calendar() {
     [copy.defaultError, copy.permissionDenied, copy.sessionExpired],
   );
 
+  const handleCustomEventTitleChange = useCallback(
+    (event: AdminCalendarEvent, value: string) => {
+      const key = event.bookingUid || event.id;
+      const normalized = value.trim();
+      setEventTitleOverrides((current) => {
+        if (!normalized) {
+          if (!(key in current)) return current;
+          const next = { ...current };
+          delete next[key];
+          return next;
+        }
+        if (current[key] === normalized) return current;
+        return { ...current, [key]: normalized };
+      });
+    },
+    [],
+  );
+
   const gmtLabel = useMemo(() => {
     const offset = getTimeZoneOffsetLabel(BOOKING_TIMEZONE)
       .replace("GMT", "")
@@ -1985,7 +2054,7 @@ export default function Calendar() {
             {viewMode === "month" ? (
               <MonthGrid
                 anchorDate={anchorDate}
-                events={events}
+                events={eventsWithDisplayTitles}
                 timezone={BOOKING_TIMEZONE}
                 language={language}
                 loading={loadingEvents}
@@ -1998,7 +2067,7 @@ export default function Calendar() {
             ) : (
               <TimeGrid
                 dates={visibleDates}
-                events={events}
+                events={eventsWithDisplayTitles}
                 timezone={BOOKING_TIMEZONE}
                 language={language}
                 loading={loadingEvents}
@@ -2018,7 +2087,7 @@ export default function Calendar() {
       </div>
 
       <ReservationCenterModal
-        event={selectedEvent}
+        event={selectedEventWithDisplayTitle}
         open={drawerOpen}
         timezone={BOOKING_TIMEZONE}
         canEdit={isAdmin}
@@ -2042,6 +2111,8 @@ export default function Calendar() {
         onRefreshReservationDetails={handleRefreshReservationDetails}
         onSubmitReschedule={handleSubmitReschedule}
         onSubmitCancel={handleSubmitCancel}
+        customEventName={selectedEventWithDisplayTitle?.title || ""}
+        onCustomEventNameChange={handleCustomEventTitleChange}
         onOpenChange={(open) => {
           setDrawerOpen(open);
           if (!open) {
