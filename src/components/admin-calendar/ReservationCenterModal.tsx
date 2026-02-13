@@ -91,6 +91,8 @@ type Copy = {
   occasionNotes: string;
   conciergeNotes: string;
   internalNotes: string;
+  internalEventName: string;
+  internalEventNamePlaceholder: string;
   commaHint: string;
   addStay: string;
   removeStay: string;
@@ -188,6 +190,8 @@ type Props = {
     reason: string;
     event: AdminCalendarEvent;
   }) => Promise<CalendarActionResult>;
+  customEventName: string;
+  onCustomEventNameChange: (event: AdminCalendarEvent, value: string) => void;
   onOpenChange: (open: boolean) => void;
 };
 
@@ -411,6 +415,8 @@ export default function ReservationCenterModal({
   onRefreshReservationDetails,
   onSubmitReschedule,
   onSubmitCancel,
+  customEventName,
+  onCustomEventNameChange,
   onOpenChange,
 }: Props) {
   const [mode, setMode] = useState<ReservationCenterView>('view');
@@ -425,8 +431,13 @@ export default function ReservationCenterModal({
     isStartValid: false,
   });
   const [removeReason, setRemoveReason] = useState('');
+  const [draftCustomEventName, setDraftCustomEventName] = useState(customEventName);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [inlineSuccess, setInlineSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraftCustomEventName(customEventName);
+  }, [customEventName]);
 
   useEffect(() => {
     if (!open || !event) return;
@@ -623,6 +634,8 @@ export default function ReservationCenterModal({
     setPendingAction('save');
     setMode('submitting');
 
+    onCustomEventNameChange(event, draftCustomEventName);
+
     const result = await onSaveDetails({ event, record: sanitizeRecord(draftRecord) });
     if (!result.ok) {
       setInlineError(result.error || copy.detailsSaveError);
@@ -745,12 +758,12 @@ export default function ReservationCenterModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-6xl overflow-hidden p-0">
-        <DialogHeader className="border-b border-border/70 bg-card p-5">
+      <DialogContent className="max-h-[96vh] w-[calc(100vw-1rem)] max-w-6xl overflow-hidden p-0 sm:max-h-[92vh] sm:w-full">
+        <DialogHeader className="border-b border-border/70 bg-card px-4 py-4 sm:p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <DialogTitle className="text-xl">{event.title || copy.titleFallback}</DialogTitle>
-              <DialogDescription>{copy.subtitle}</DialogDescription>
+              <DialogTitle className="text-base leading-snug sm:text-xl">{draftCustomEventName.trim() || event.title || copy.titleFallback}</DialogTitle>
+              <DialogDescription className="text-sm">{copy.subtitle}</DialogDescription>
             </div>
             <Badge variant="secondary" className="uppercase">
               {record.reservation.status || event.status}
@@ -758,8 +771,8 @@ export default function ReservationCenterModal({
           </div>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(92vh-88px)]">
-          <div className="space-y-5 p-5">
+        <ScrollArea className="max-h-[calc(96vh-84px)] sm:max-h-[calc(92vh-88px)]">
+          <div className="space-y-5 px-4 pb-24 pt-4 sm:p-5 sm:pb-12">
             <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-sky-50 via-card to-emerald-50/40 p-4">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {copy.summarySectionTitle}
@@ -975,6 +988,18 @@ export default function ReservationCenterModal({
                     </Badge>
                   </div>
                   <p className="mb-3 text-sm text-muted-foreground">{copy.actionDeckDescription}</p>
+                  <div className="mb-3 space-y-2">
+                    <Label>{copy.internalEventName}</Label>
+                    <Input
+                      value={draftCustomEventName}
+                      onChange={(e) => {
+                        setDraftCustomEventName(e.target.value);
+                        if (mode !== 'edit') onCustomEventNameChange(event, e.target.value);
+                      }}
+                      disabled={readOnly}
+                      placeholder={copy.internalEventNamePlaceholder}
+                    />
+                  </div>
                   {!canEdit ? (
                     <p className="rounded-md border border-border/60 bg-muted/25 p-2 text-xs text-muted-foreground">
                       {copy.lockedReadOnly}
@@ -1300,7 +1325,7 @@ export default function ReservationCenterModal({
           </div>
         </ScrollArea>
 
-        <div className="flex items-center justify-end gap-2 border-t border-border/70 p-4">
+        <div className="flex items-center justify-end gap-2 border-t border-border/70 bg-card px-4 py-3 sm:p-4">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             {copy.close}
           </Button>
