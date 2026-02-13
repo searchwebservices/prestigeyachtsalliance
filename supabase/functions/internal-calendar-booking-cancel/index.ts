@@ -116,7 +116,29 @@ Deno.serve(async (req) => {
       throw err;
     }
 
-    await logBookingRequest({ supabase: serviceSupabase, endpoint: ENDPOINT, requestId, statusCode: 200, details: { reason: 'cancel_success', bookingUid, slug, cancelReason: reason, userId: user.id } });
+    // ── Sync reservation_details ──
+    const { data: existingRes } = await serviceSupabase
+      .from('reservation_details')
+      .select('id')
+      .eq('booking_uid_current', bookingUid)
+      .maybeSingle();
+
+    if (existingRes) {
+      await serviceSupabase
+        .from('reservation_details')
+        .update({ status: 'cancelled', updated_by: user.id })
+        .eq('id', existingRes.id);
+
+      await serviceSupabase.from('reservation_change_log').insert({
+        reservation_id: existingRes.id,
+        booking_uid: bookingUid,
+        action: 'cancelled',
+        actor_user_id: user.id,
+        payload: { reason },
+      });
+    }
+
+    await logBookingRequest({ supabase: serviceSupabase, endpoint: ENDPOINT, requestId, statusCode: 200, details: { reason: 'cancel_success', bookingUid, slug, cancelReason: reason, userId: user.id, reservationSynced: !!existingRes } });
     return json(req, 200, { requestId, bookingUid, status: 'canceled' });
   } catch (error) {
     console.error(`${ENDPOINT} error:`, error);
