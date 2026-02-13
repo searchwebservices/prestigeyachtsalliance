@@ -573,6 +573,104 @@ const fetchSlotsOpenHours = async ({
   return hoursPerDay;
 };
 
+/**
+ * Fetch available slots from Cal.com for a specific duration (in minutes).
+ * Returns a Map of dateKey -> Set<startHour> for slots within operating window.
+ */
+const fetchSlotsForDuration = async ({
+  config,
+  eventTypeId,
+  monthRange,
+  timeZone,
+  durationMinutes,
+}: {
+  config: CalApiConfig;
+  eventTypeId: number;
+  monthRange: { startUtc: string; endUtc: string };
+  timeZone: string;
+  durationMinutes: number;
+}): Promise<Map<string, Set<number>>> => {
+  const payload = await calRequest<CalSlotsPayload>({
+    config,
+    method: 'GET',
+    path: '/v2/slots',
+    searchParams: {
+      eventTypeId,
+      start: monthRange.startUtc,
+      end: monthRange.endUtc,
+      timeZone,
+      duration: durationMinutes,
+    },
+    apiVersion: DEFAULT_CAL_API_VERSION_SLOTS,
+  });
+
+  const slotMap = getSlotsMap(payload);
+  const startsPerDay = new Map<string, Set<number>>();
+
+  for (const slots of Object.values(slotMap)) {
+    for (const slot of slots) {
+      const iso = getSlotIso(slot);
+      if (!iso) continue;
+
+      const local = toTimeZoneParts(iso, timeZone);
+      if (local.hour < OPERATING_START || local.hour >= OPERATING_END) continue;
+
+      const starts = getOrCreate(startsPerDay, local.dateKey, () => new Set<number>());
+      starts.add(local.hour);
+    }
+  }
+
+  return startsPerDay;
+};
+
+/**
+ * Check if Cal.com provider has an available slot for a specific date, start hour, and duration.
+ * Used as a pre-create recheck to avoid false-positive 409s.
+ */
+export const checkProviderSlotAvailable = async ({
+  config,
+  eventTypeId,
+  date,
+  startHour,
+  requestedHours,
+  timeZone,
+}: {
+  config: CalApiConfig;
+  eventTypeId: number;
+  date: string;
+  startHour: number;
+  requestedHours: number;
+  timeZone: string;
+}): Promise<boolean> => {
+  const startUtc = zonedDateTimeToUtcIso(date, 0, 0, timeZone);
+  const endUtc = zonedDateTimeToUtcIso(date, 23, 59, timeZone);
+
+  const payload = await calRequest<CalSlotsPayload>({
+    config,
+    method: 'GET',
+    path: '/v2/slots',
+    searchParams: {
+      eventTypeId,
+      start: startUtc,
+      end: endUtc,
+      timeZone,
+      duration: requestedHours * 60,
+    },
+    apiVersion: DEFAULT_CAL_API_VERSION_SLOTS,
+  });
+
+  const slotMap = getSlotsMap(payload);
+  for (const slots of Object.values(slotMap)) {
+    for (const slot of slots) {
+      const iso = getSlotIso(slot);
+      if (!iso) continue;
+      const local = toTimeZoneParts(iso, timeZone);
+      if (local.dateKey === date && local.hour === startHour) return true;
+    }
+  }
+  return false;
+};
+
 const fetchBookings = async ({
   config,
   eventTypeId,
@@ -649,7 +747,9 @@ export const buildAvailabilityForMonth = async ({
     throw new Error('Invalid month key');
   }
 
-  const [slotsMap, bookings] = await Promise.all([
+  // Fetch duration=60 slots (for openHours/am-pm display), bookings,
+  // and per-duration provider slots in parallel
+  const [slotsMap, bookings, ...providerStartsMaps] = await Promise.all([
     fetchSlotsOpenHours({
       config,
       eventTypeId,
@@ -661,6 +761,15 @@ export const buildAvailabilityForMonth = async ({
       eventTypeId,
       monthRange,
     }),
+    ...DURATIONS.map(dur =>
+      fetchSlotsForDuration({
+        config,
+        eventTypeId,
+        monthRange,
+        timeZone,
+        durationMinutes: dur * 60,
+      })
+    ),
   ]);
 
   // Build blocked hours per day from exact booked intervals
@@ -737,10 +846,19 @@ export const buildAvailabilityForMonth = async ({
       }
     }
 
-    // Compute validStartsByDuration for each duration
+    // Compute validStartsByDuration: intersect provider-valid starts with policy
     const validStartsByDuration: Record<string, number[]> = {};
-    for (const dur of DURATIONS) {
-      validStartsByDuration[String(dur)] = getValidStartsForDay(openHours, dur);
+    for (let i = 0; i < DURATIONS.length; i++) {
+      const dur = DURATIONS[i];
+      const providerStarts = providerStartsMaps[i].get(dateKey) || new Set<number>();
+      const validStarts: number[] = [];
+      for (const sh of providerStarts) {
+        if (isStartAllowedByPolicy(dur, sh)) {
+          validStarts.push(sh);
+        }
+      }
+      validStarts.sort((a, b) => a - b);
+      validStartsByDuration[String(dur)] = validStarts;
     }
 
     // Derive am/pm/fullOpen for hybrid calendar highlighting
