@@ -13,6 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CheckCircle2, ClipboardCopy, MessageCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -72,9 +73,24 @@ type DraftState = {
 };
 
 type ConfirmationState = {
+  submittedAt: string;
   transactionId: string;
   bookingUid: string | null;
   status: string;
+  yachtName: string;
+  yachtSlug: string;
+  date: string;
+  requestedHours: number;
+  startHour: number;
+  endHour: number;
+  shiftFit: 'morning' | 'afternoon' | 'flexible';
+  segment: 'AM' | 'PM' | 'FLEXIBLE';
+  timeRange: string;
+  timezone: string;
+  attendeeName: string;
+  attendeeEmail: string;
+  attendeePhone: string | null;
+  notes: string;
 };
 
 const INITIAL_DRAFT: DraftState = {
@@ -91,6 +107,8 @@ const INITIAL_DRAFT: DraftState = {
 const TOTAL_STEPS = 5;
 const apiBase = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const RICARDO_PHONE_E164 = '526242664411';
+const RICARDO_PHONE_DISPLAY = '+52 624 266 4411';
 
 const COPY = {
   en: {
@@ -116,6 +134,33 @@ const COPY = {
     sessionExpired: 'Your session expired. Please sign in again.',
     bookingSubmittedTitle: 'Booking submitted',
     bookingSubmittedDescription: 'Booking created successfully.',
+    confirmationPageTitle: 'Booking Confirmed',
+    confirmationPageSubtitle: 'Everything is booked. Share this confirmation with Ricardo to close the loop.',
+    confirmationRicardoTitle: 'Send to Ricardo',
+    confirmationRicardoDescription: `Notify Ricardo on WhatsApp at ${RICARDO_PHONE_DISPLAY}.`,
+    confirmationWhatsAppCta: 'WhatsApp Ricardo',
+    confirmationCopyCta: 'Copy reservation',
+    confirmationCopiedTitle: 'Reservation copied',
+    confirmationCopiedDescription: 'All booking details copied to clipboard.',
+    confirmationDetailsTitle: 'Reservation details',
+    confirmationClientTitle: 'Client details',
+    confirmationMetaTitle: 'Booking status',
+    confirmationSubmittedAt: 'Submitted',
+    confirmationTransactionId: 'Transaction ID',
+    confirmationBookingUid: 'Booking UID',
+    confirmationStatus: 'Status',
+    confirmationBoat: 'Boat',
+    confirmationDate: 'Date',
+    confirmationTime: 'Time',
+    confirmationDuration: 'Duration',
+    confirmationShift: 'Shift fit',
+    confirmationSegment: 'Segment',
+    confirmationTimezone: 'Timezone',
+    confirmationClientName: 'Name',
+    confirmationClientEmail: 'Email',
+    confirmationClientPhone: 'Phone',
+    confirmationNotes: 'Notes',
+    confirmationNotAvailable: 'N/A',
     clearSuccess: 'Start another booking',
     noDaysAvailable: 'No available days in this month. Try another month.',
     hoursUnit: 'hours',
@@ -182,6 +227,33 @@ const COPY = {
     sessionExpired: 'Tu sesión expiró. Inicia sesión de nuevo.',
     bookingSubmittedTitle: 'Reserva enviada',
     bookingSubmittedDescription: 'La reserva se creó correctamente.',
+    confirmationPageTitle: 'Reserva confirmada',
+    confirmationPageSubtitle: 'Todo quedó reservado. Comparte esta confirmación con Ricardo para cerrar el proceso.',
+    confirmationRicardoTitle: 'Enviar a Ricardo',
+    confirmationRicardoDescription: `Notifica a Ricardo por WhatsApp al ${RICARDO_PHONE_DISPLAY}.`,
+    confirmationWhatsAppCta: 'WhatsApp Ricardo',
+    confirmationCopyCta: 'Copiar reserva',
+    confirmationCopiedTitle: 'Reserva copiada',
+    confirmationCopiedDescription: 'Se copiaron todos los detalles al portapapeles.',
+    confirmationDetailsTitle: 'Detalles de la reserva',
+    confirmationClientTitle: 'Datos del cliente',
+    confirmationMetaTitle: 'Estado de la reserva',
+    confirmationSubmittedAt: 'Enviada',
+    confirmationTransactionId: 'ID de transacción',
+    confirmationBookingUid: 'Booking UID',
+    confirmationStatus: 'Estado',
+    confirmationBoat: 'Yate',
+    confirmationDate: 'Fecha',
+    confirmationTime: 'Hora',
+    confirmationDuration: 'Duración',
+    confirmationShift: 'Turno',
+    confirmationSegment: 'Segmento',
+    confirmationTimezone: 'Zona horaria',
+    confirmationClientName: 'Nombre',
+    confirmationClientEmail: 'Correo',
+    confirmationClientPhone: 'Teléfono',
+    confirmationNotes: 'Notas',
+    confirmationNotAvailable: 'N/D',
     clearSuccess: 'Crear otra reserva',
     noDaysAvailable: 'No hay días disponibles en este mes. Prueba otro mes.',
     hoursUnit: 'horas',
@@ -229,6 +301,38 @@ const COPY = {
 
 const monthKeyFromDate = (date: Date) => format(date, 'yyyy-MM');
 
+const buildReservationReportText = (details: ConfirmationState) =>
+  [
+    'Prestige Yachts - Internal Booking Confirmation',
+    `Transaction ID: ${details.transactionId}`,
+    `Booking UID: ${details.bookingUid || 'N/A'}`,
+    `Status: ${details.status}`,
+    `Boat: ${details.yachtName} (${details.yachtSlug})`,
+    `Date: ${details.date}`,
+    `Time: ${details.timeRange} (${details.timezone})`,
+    `Requested Hours: ${details.requestedHours}`,
+    `Shift Fit: ${details.shiftFit}`,
+    `Segment: ${details.segment}`,
+    `Client Name: ${details.attendeeName}`,
+    `Client Email: ${details.attendeeEmail}`,
+    `Client Phone: ${details.attendeePhone || 'N/A'}`,
+    `Notes: ${details.notes || 'N/A'}`,
+    `Submitted At: ${details.submittedAt}`,
+    `Ricardo Contact: ${RICARDO_PHONE_DISPLAY}`,
+  ].join('\n');
+
+const buildRicardoWhatsAppText = (details: ConfirmationState) =>
+  [
+    'Hi Ricardo, booking confirmed.',
+    `Transaction ID: ${details.transactionId}`,
+    `Boat: ${details.yachtName}`,
+    `Date: ${details.date}`,
+    `Time: ${details.timeRange}`,
+    `Client: ${details.attendeeName} (${details.attendeeEmail})`,
+    `Phone: ${details.attendeePhone || 'N/A'}`,
+    `Notes: ${details.notes || 'N/A'}`,
+  ].join('\n');
+
 const isEndpointUnavailable = (status: number, errorMessage?: string) => {
   if (![404, 405, 501].includes(status)) return false;
   if (!errorMessage) return true;
@@ -265,6 +369,7 @@ export default function Book() {
   const { trackEvent } = useActivityTracker();
   const [searchParams] = useSearchParams();
   const copy = COPY[language];
+  const dateLocale = language === 'es' ? es : enUS;
 
   const [step, setStep] = useState<WizardStep>(1);
   const [draft, setDraft] = useState<DraftState>(INITIAL_DRAFT);
@@ -306,10 +411,9 @@ export default function Book() {
   const monthKey = useMemo(() => monthKeyFromDate(monthDate), [monthDate]);
 
   const monthLabel = useMemo(() => {
-    const locale = language === 'es' ? es : enUS;
-    const label = format(monthDate, 'MMMM yyyy', { locale });
+    const label = format(monthDate, 'MMMM yyyy', { locale: dateLocale });
     return label.charAt(0).toUpperCase() + label.slice(1);
-  }, [language, monthDate]);
+  }, [dateLocale, monthDate]);
 
   const canGoPreviousMonth = useMemo(
     () => startOfMonth(monthDate).getTime() > minMonthDate.getTime(),
@@ -686,7 +790,7 @@ export default function Book() {
 
       const endHour = draft.startHour + draft.requestedHours;
       const shiftFit = getShiftFit(draft.startHour, endHour);
-      const segment = getSegmentLabelFromShiftFit(shiftFit);
+      const segment = getSegmentLabelFromShiftFit(shiftFit) as 'AM' | 'PM' | 'FLEXIBLE';
       const transactionId = payload.transactionId || payload.bookingUid || payload.requestId;
 
       await trackEvent('trip_booked', {
@@ -721,11 +825,28 @@ export default function Book() {
         start_hour: draft.startHour,
       });
 
-      setConfirmation({
+      const confirmationDetails: ConfirmationState = {
+        submittedAt: new Date().toISOString(),
         transactionId,
         bookingUid: payload.bookingUid,
         status: payload.status,
-      });
+        yachtName: selectedYacht?.name || draft.yachtSlug,
+        yachtSlug: draft.yachtSlug,
+        date: draft.date,
+        requestedHours: draft.requestedHours,
+        startHour: draft.startHour,
+        endHour,
+        shiftFit,
+        segment,
+        timeRange: getTimeRangeLabel(draft.requestedHours, draft.startHour),
+        timezone: availability?.timezone || BOOKING_TIMEZONE,
+        attendeeName: draft.attendeeName.trim(),
+        attendeeEmail: draft.attendeeEmail.trim().toLowerCase(),
+        attendeePhone: draft.attendeePhone.trim() || null,
+        notes: draft.notes.trim(),
+      };
+
+      setConfirmation(confirmationDetails);
 
       toast({
         title: copy.bookingSubmittedTitle,
@@ -775,6 +896,44 @@ export default function Book() {
     selectedYacht,
   ]);
 
+  const confirmationShiftLabel = useMemo(() => {
+    if (!confirmation) return copy.confirmationNotAvailable;
+    if (confirmation.shiftFit === 'morning') return copy.shiftMorning;
+    if (confirmation.shiftFit === 'afternoon') return copy.shiftAfternoon;
+    return copy.shiftFlexible;
+  }, [
+    confirmation,
+    copy.confirmationNotAvailable,
+    copy.shiftAfternoon,
+    copy.shiftFlexible,
+    copy.shiftMorning,
+  ]);
+
+  const handleCopyReservation = async () => {
+    if (!confirmation) return;
+    try {
+      await navigator.clipboard.writeText(buildReservationReportText(confirmation));
+      toast({
+        title: copy.confirmationCopiedTitle,
+        description: copy.confirmationCopiedDescription,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : copy.submitError;
+      toast({
+        variant: 'destructive',
+        title: copy.submitError,
+        description: message,
+      });
+    }
+  };
+
+  const confirmationWhatsAppHref = useMemo(() => {
+    if (!confirmation) return '#';
+    return `https://wa.me/${RICARDO_PHONE_E164}?text=${encodeURIComponent(
+      buildRicardoWhatsAppText(confirmation)
+    )}`;
+  }, [confirmation]);
+
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-5xl space-y-5">
@@ -797,185 +956,240 @@ export default function Book() {
           </Alert>
         )}
 
-        {confirmation && (
-          <Alert>
-            <AlertTitle>{copy.bookingSubmittedTitle}</AlertTitle>
-            <AlertDescription>
-              {copy.bookingSubmittedDescription}{' '}
-              <span className="font-medium">ID: {confirmation.transactionId}</span>
-              {' · '}
-              <span className="font-medium">{confirmation.status}</span>
-            </AlertDescription>
-            <div className="mt-3">
+        {confirmation ? (
+          <Card className="overflow-hidden border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-card to-card">
+            <CardHeader className="border-b border-emerald-500/20 bg-emerald-500/5">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                {copy.confirmationPageTitle}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">{copy.confirmationPageSubtitle}</p>
+            </CardHeader>
+            <CardContent className="space-y-5 p-5 md:p-6">
+              <div className="rounded-xl border border-border/70 bg-background/90 p-4">
+                <p className="text-sm font-semibold text-foreground">{copy.confirmationRicardoTitle}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {copy.confirmationRicardoDescription}{' '}
+                  <span className="font-medium text-foreground">{RICARDO_PHONE_DISPLAY}</span>
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button asChild>
+                    <a href={confirmationWhatsAppHref} target="_blank" rel="noreferrer">
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      {copy.confirmationWhatsAppCta}
+                    </a>
+                  </Button>
+                  <Button variant="secondary" onClick={handleCopyReservation}>
+                    <ClipboardCopy className="mr-2 h-4 w-4" />
+                    {copy.confirmationCopyCta}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border border-border/70 bg-background/80 p-4">
+                  <p className="mb-3 text-sm font-semibold text-foreground">{copy.confirmationMetaTitle}</p>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">{copy.confirmationSubmittedAt}:</span> {format(new Date(confirmation.submittedAt), 'MMM d, yyyy h:mm a', { locale: dateLocale })}</p>
+                    <p><span className="font-medium">{copy.confirmationTransactionId}:</span> {confirmation.transactionId}</p>
+                    <p><span className="font-medium">{copy.confirmationBookingUid}:</span> {confirmation.bookingUid || copy.confirmationNotAvailable}</p>
+                    <p><span className="font-medium">{copy.confirmationStatus}:</span> {confirmation.status}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-background/80 p-4">
+                  <p className="mb-3 text-sm font-semibold text-foreground">{copy.confirmationDetailsTitle}</p>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">{copy.confirmationBoat}:</span> {confirmation.yachtName}</p>
+                    <p><span className="font-medium">{copy.confirmationDate}:</span> {confirmation.date}</p>
+                    <p><span className="font-medium">{copy.confirmationTime}:</span> {confirmation.timeRange}</p>
+                    <p><span className="font-medium">{copy.confirmationDuration}:</span> {confirmation.requestedHours} {copy.hoursUnit}</p>
+                    <p><span className="font-medium">{copy.confirmationShift}:</span> {confirmationShiftLabel}</p>
+                    <p><span className="font-medium">{copy.confirmationSegment}:</span> {confirmation.segment}</p>
+                    <p><span className="font-medium">{copy.confirmationTimezone}:</span> {confirmation.timezone}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-background/80 p-4">
+                <p className="mb-3 text-sm font-semibold text-foreground">{copy.confirmationClientTitle}</p>
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-medium">{copy.confirmationClientName}:</span> {confirmation.attendeeName}</p>
+                  <p><span className="font-medium">{copy.confirmationClientEmail}:</span> {confirmation.attendeeEmail}</p>
+                  <p><span className="font-medium">{copy.confirmationClientPhone}:</span> {confirmation.attendeePhone || copy.confirmationNotAvailable}</p>
+                  <p><span className="font-medium">{copy.confirmationNotes}:</span> {confirmation.notes || copy.confirmationNotAvailable}</p>
+                </div>
+              </div>
+
               <Button variant="outline" onClick={resetWizard}>
                 {copy.clearSuccess}
               </Button>
-            </div>
-          </Alert>
-        )}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-border/60">
+            <CardHeader>
+              <CardTitle>{stepTitle}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BookingWizard
+                step={step}
+                totalSteps={TOTAL_STEPS}
+                title={stepTitle}
+                subtitle={stepSubtitle}
+                stepLabel={copy.stepLabel}
+                ofLabel={copy.ofLabel}
+                backLabel={copy.back}
+                continueLabel={copy.continue}
+                submitLabel={copy.submit}
+                submittingLabel={copy.submitting}
+                canGoBack={step > 1}
+                canContinue={canContinue}
+                canSubmit={canSubmit}
+                isSubmitting={submitting}
+                onBack={handleBack}
+                onContinue={handleContinue}
+                onSubmit={handleSubmit}
+              >
+                {step === 1 && (
+                  <StepYacht
+                    yachts={yachts}
+                    selectedYachtSlug={draft.yachtSlug}
+                    loading={loadingYachts}
+                    error={yachtsError}
+                    emptyLabel={copy.yachtsEmpty}
+                    capacityLabel={copy.capacityLabel}
+                    retryLabel={copy.retry}
+                    onRetry={() => void loadYachts()}
+                    onSelect={handleSelectYacht}
+                  />
+                )}
 
-        <Card className="border-border/60">
-          <CardHeader>
-            <CardTitle>{stepTitle}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BookingWizard
-              step={step}
-              totalSteps={TOTAL_STEPS}
-              title={stepTitle}
-              subtitle={stepSubtitle}
-              stepLabel={copy.stepLabel}
-              ofLabel={copy.ofLabel}
-              backLabel={copy.back}
-              continueLabel={copy.continue}
-              submitLabel={copy.submit}
-              submittingLabel={copy.submitting}
-              canGoBack={step > 1}
-              canContinue={canContinue}
-              canSubmit={canSubmit}
-              isSubmitting={submitting}
-              onBack={handleBack}
-              onContinue={handleContinue}
-              onSubmit={handleSubmit}
-            >
-              {step === 1 && (
-                <StepYacht
-                  yachts={yachts}
-                  selectedYachtSlug={draft.yachtSlug}
-                  loading={loadingYachts}
-                  error={yachtsError}
-                  emptyLabel={copy.yachtsEmpty}
-                  capacityLabel={copy.capacityLabel}
-                  retryLabel={copy.retry}
-                  onRetry={() => void loadYachts()}
-                  onSelect={handleSelectYacht}
-                />
-              )}
+                {step === 2 && (
+                  <div className="space-y-4">
+                    {loadingAvailability && (
+                      <div className="space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-60 w-full" />
+                      </div>
+                    )}
 
-              {step === 2 && (
-                <div className="space-y-4">
-                  {loadingAvailability && (
-                    <div className="space-y-2">
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-60 w-full" />
-                    </div>
-                  )}
+                    {availabilityError && !loadingAvailability && (
+                      <Alert variant="destructive">
+                        <AlertTitle>{copy.availabilityError}</AlertTitle>
+                        <AlertDescription>{availabilityError}</AlertDescription>
+                      </Alert>
+                    )}
 
-                  {availabilityError && !loadingAvailability && (
-                    <Alert variant="destructive">
-                      <AlertTitle>{copy.availabilityError}</AlertTitle>
-                      <AlertDescription>{availabilityError}</AlertDescription>
-                    </Alert>
-                  )}
+                    {!loadingAvailability && availability && (
+                      <StepDay
+                        monthDate={monthDate}
+                        days={availability.days}
+                        selectedDate={draft.date}
+                        minDateKey={todayDateKey}
+                        canGoPreviousMonth={canGoPreviousMonth}
+                        copy={{
+                          weekdayLabels: copy.weekdayLabels,
+                          previousMonth: copy.previousMonth,
+                          nextMonth: copy.nextMonth,
+                          monthLabel,
+                          noDaysAvailable: copy.noDaysAvailable,
+                        }}
+                        onPreviousMonth={() =>
+                          setMonthDate((current) => {
+                            const previousMonth = addMonths(current, -1);
+                            if (startOfMonth(previousMonth).getTime() < minMonthDate.getTime()) {
+                              return current;
+                            }
+                            return previousMonth;
+                          })
+                        }
+                        onNextMonth={() => setMonthDate((current) => addMonths(current, 1))}
+                        onSelectDate={handleSelectDate}
+                      />
+                    )}
+                  </div>
+                )}
 
-                  {!loadingAvailability && availability && (
-                    <StepDay
-                      monthDate={monthDate}
-                      days={availability.days}
-                      selectedDate={draft.date}
-                      minDateKey={todayDateKey}
-                      canGoPreviousMonth={canGoPreviousMonth}
-                      copy={{
-                        weekdayLabels: copy.weekdayLabels,
-                        previousMonth: copy.previousMonth,
-                        nextMonth: copy.nextMonth,
-                        monthLabel,
-                        noDaysAvailable: copy.noDaysAvailable,
+                {step === 3 && (
+                  <div className="space-y-4">
+                    <StepDuration
+                      requestedHours={draft.requestedHours}
+                      disabledHours={disabledDurationHours}
+                      onSelectHours={handleSelectDuration}
+                      hoursLabel={copy.hoursUnit}
+                      helperCopy={{
+                        defaultText: copy.durationDefault,
+                        threeHours: copy.duration3,
+                        fourHours: copy.duration4,
+                        fivePlusHours: copy.duration5,
                       }}
-                      onPreviousMonth={() =>
-                        setMonthDate((current) => {
-                          const previousMonth = addMonths(current, -1);
-                          if (startOfMonth(previousMonth).getTime() < minMonthDate.getTime()) {
-                            return current;
-                          }
-                          return previousMonth;
-                        })
-                      }
-                      onNextMonth={() => setMonthDate((current) => addMonths(current, 1))}
-                      onSelectDate={handleSelectDate}
                     />
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {step === 3 && (
-                <div className="space-y-4">
-                  <StepDuration
+                {step === 4 && draft.requestedHours && (
+                  <StepStartTimes
                     requestedHours={draft.requestedHours}
-                    disabledHours={disabledDurationHours}
-                    onSelectHours={handleSelectDuration}
-                    hoursLabel={copy.hoursUnit}
-                    helperCopy={{
-                      defaultText: copy.durationDefault,
-                      threeHours: copy.duration3,
-                      fourHours: copy.duration4,
-                      fivePlusHours: copy.duration5,
-                    }}
-                  />
-                </div>
-              )}
-
-              {step === 4 && draft.requestedHours && (
-                <StepStartTimes
-                  requestedHours={draft.requestedHours}
-                  selectedDate={draft.date}
-                  selectedStartHour={draft.startHour}
-                  startHourOptions={startHourOptions}
-                  copy={{
-                    timeSectionTitle: copy.timeSectionTitle,
-                    selectDateHint: copy.selectDateHint,
-                    noTimesForDate: copy.noTimesForDate,
-                    selectedTripLabel: copy.selectedTripLabel,
-                    shiftFitLabel: copy.shiftFitLabel,
-                    shiftMorning: copy.shiftMorning,
-                    shiftAfternoon: copy.shiftAfternoon,
-                    shiftFlexible: copy.shiftFlexible,
-                  }}
-                  onSelectStartHour={(hour) =>
-                    setDraft((prev) => ({
-                      ...prev,
-                      startHour: hour,
-                    }))
-                  }
-                />
-              )}
-
-              {step === 5 && (
-                <div className="space-y-4">
-                  {submitInlineError && (
-                    <Alert variant="destructive">
-                      <AlertTitle>{copy.submitError}</AlertTitle>
-                      <AlertDescription>{submitInlineError}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <StepClient
-                    summary={clientSummary}
+                    selectedDate={draft.date}
+                    selectedStartHour={draft.startHour}
+                    startHourOptions={startHourOptions}
                     copy={{
-                      summaryLabel: copy.summaryLabel,
-                      nameLabel: copy.nameLabel,
-                      namePlaceholder: copy.namePlaceholder,
-                      emailLabel: copy.emailLabel,
-                      emailPlaceholder: copy.emailPlaceholder,
-                      phoneLabel: copy.phoneLabel,
-                      phonePlaceholder: copy.phonePlaceholder,
-                      notesLabel: copy.notesLabel,
-                      notesPlaceholder: copy.notesPlaceholder,
+                      timeSectionTitle: copy.timeSectionTitle,
+                      selectDateHint: copy.selectDateHint,
+                      noTimesForDate: copy.noTimesForDate,
+                      selectedTripLabel: copy.selectedTripLabel,
+                      shiftFitLabel: copy.shiftFitLabel,
+                      shiftMorning: copy.shiftMorning,
+                      shiftAfternoon: copy.shiftAfternoon,
+                      shiftFlexible: copy.shiftFlexible,
                     }}
-                    attendeeName={draft.attendeeName}
-                    attendeeEmail={draft.attendeeEmail}
-                    attendeePhone={draft.attendeePhone}
-                    notes={draft.notes}
-                    onAttendeeNameChange={(value) => setDraft((prev) => ({ ...prev, attendeeName: value }))}
-                    onAttendeeEmailChange={(value) => setDraft((prev) => ({ ...prev, attendeeEmail: value }))}
-                    onAttendeePhoneChange={(value) => setDraft((prev) => ({ ...prev, attendeePhone: value }))}
-                    onNotesChange={(value) => setDraft((prev) => ({ ...prev, notes: value }))}
+                    onSelectStartHour={(hour) =>
+                      setDraft((prev) => ({
+                        ...prev,
+                        startHour: hour,
+                      }))
+                    }
                   />
-                </div>
-              )}
-            </BookingWizard>
-          </CardContent>
-        </Card>
+                )}
+
+                {step === 5 && (
+                  <div className="space-y-4">
+                    {submitInlineError && (
+                      <Alert variant="destructive">
+                        <AlertTitle>{copy.submitError}</AlertTitle>
+                        <AlertDescription>{submitInlineError}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    <StepClient
+                      summary={clientSummary}
+                      copy={{
+                        summaryLabel: copy.summaryLabel,
+                        nameLabel: copy.nameLabel,
+                        namePlaceholder: copy.namePlaceholder,
+                        emailLabel: copy.emailLabel,
+                        emailPlaceholder: copy.emailPlaceholder,
+                        phoneLabel: copy.phoneLabel,
+                        phonePlaceholder: copy.phonePlaceholder,
+                        notesLabel: copy.notesLabel,
+                        notesPlaceholder: copy.notesPlaceholder,
+                      }}
+                      attendeeName={draft.attendeeName}
+                      attendeeEmail={draft.attendeeEmail}
+                      attendeePhone={draft.attendeePhone}
+                      notes={draft.notes}
+                      onAttendeeNameChange={(value) => setDraft((prev) => ({ ...prev, attendeeName: value }))}
+                      onAttendeeEmailChange={(value) => setDraft((prev) => ({ ...prev, attendeeEmail: value }))}
+                      onAttendeePhoneChange={(value) => setDraft((prev) => ({ ...prev, attendeePhone: value }))}
+                      onNotesChange={(value) => setDraft((prev) => ({ ...prev, notes: value }))}
+                    />
+                  </div>
+                )}
+              </BookingWizard>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );
