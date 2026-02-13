@@ -4,6 +4,7 @@ import {
   BOOKING_TIMEZONE,
   BookingHalf,
   CalApiError,
+  checkProviderSlotAvailable,
   buildAvailabilityForMonth,
   calRequest,
   createServiceRoleClient,
@@ -250,7 +251,7 @@ Deno.serve(async (req) => {
 
     // ── No Turnstile for internal endpoints ──
 
-    // ── Re-check availability server-side ──
+    // ── Re-check availability server-side (policy cache) ──
     const availability = await buildAvailabilityForMonth({
       config: getCalApiConfig(),
       eventTypeId: yacht.cal_event_type_id,
@@ -265,7 +266,28 @@ Deno.serve(async (req) => {
         endpoint: 'internal-booking-create',
         requestId,
         statusCode: 409,
-        details: { reason: 'slot_not_available', slug, date, requestedHours, startHour },
+        details: { reason: 'slot_not_available_policy_cache', slug, date, requestedHours, startHour },
+      });
+      return json(req, 409, { error: 'Selected date/time is no longer available', requestId });
+    }
+
+    // ── Provider slot recheck for exact duration ──
+    const calConfig = getCalApiConfig();
+    const providerAvailable = await checkProviderSlotAvailable({
+      config: calConfig,
+      eventTypeId: yacht.cal_event_type_id,
+      date,
+      startHour,
+      requestedHours,
+      timeZone: BOOKING_TIMEZONE,
+    });
+    if (!providerAvailable) {
+      await logBookingRequest({
+        supabase: serviceSupabase,
+        endpoint: 'internal-booking-create',
+        requestId,
+        statusCode: 409,
+        details: { reason: 'slot_not_available_provider', slug, date, requestedHours, startHour },
       });
       return json(req, 409, { error: 'Selected date/time is no longer available', requestId });
     }
