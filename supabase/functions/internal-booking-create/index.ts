@@ -39,6 +39,40 @@ type CreateBookingBody = {
 
 const BOOKING_SOURCE = 'internal_book_v1';
 
+
+const normalizePhoneNumber = (value: string | undefined) => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  let normalized = trimmed.replace(/[^\d+]/g, '');
+
+  if (normalized.startsWith('00')) {
+    normalized = `+${normalized.slice(2)}`;
+  }
+
+  if (!normalized.startsWith('+')) return null;
+
+  const digitsOnly = normalized.slice(1);
+  if (!/^\d{8,15}$/.test(digitsOnly)) return null;
+
+  return `+${digitsOnly}`;
+};
+
+const normalizeCalErrorMessage = (error: CalApiError, fallback: string) => {
+  if (typeof fallback === 'string' && fallback.trim()) return fallback;
+
+  const payload = error.payload;
+  if (payload && typeof payload === 'object') {
+    const message = (payload as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+
+    const errorMessage = (payload as { error?: { message?: unknown } }).error?.message;
+    if (typeof errorMessage === 'string' && errorMessage.trim()) return errorMessage;
+  }
+
+  return 'Booking provider rejected this request';
+};
+
 const readRateLimitSettings = () => {
   const maxRequests = Number(Deno.env.get('BOOKING_RATE_LIMIT_MAX_REQUESTS') || '12');
   const windowMinutes = Number(Deno.env.get('BOOKING_RATE_LIMIT_WINDOW_MINUTES') || '60');
@@ -121,7 +155,8 @@ Deno.serve(async (req) => {
     const half = body.half ?? null;
     const attendeeName = body.attendee?.name?.trim();
     const attendeeEmail = body.attendee?.email?.trim().toLowerCase();
-    const attendeePhone = body.attendee?.phoneNumber?.trim();
+    const attendeePhoneRaw = body.attendee?.phoneNumber;
+    const attendeePhone = normalizePhoneNumber(attendeePhoneRaw);
     const notes = body.notes?.trim() || '';
 
     if (!slug || !date || !isDateKey(date)) {
@@ -299,38 +334,63 @@ Deno.serve(async (req) => {
     // Derive selected_half for legacy compat
     const selectedHalf = half || (segment === 'am' ? 'am' : segment === 'pm' ? 'pm' : '');
 
-    const bookingPayload = await calRequest<{ data?: Record<string, unknown> }>({
-      config: getCalApiConfig(),
-      method: 'POST',
-      path: '/v2/bookings',
-      apiVersion: '2024-08-13',
-      body: {
-        start: bookingStartUtc,
-        eventTypeId: yacht.cal_event_type_id,
-        lengthInMinutes,
-        attendee: {
-          name: attendeeName,
-          email: attendeeEmail,
-          timeZone: BOOKING_TIMEZONE,
-          ...(attendeePhone ? { phoneNumber: attendeePhone } : {}),
-        },
-        metadata: {
-          policy_version: BOOKING_POLICY_VERSION,
-          yacht_slug: yacht.slug,
-          start_hour: String(startHour),
-          end_hour: String(endHour),
-          requested_hours: String(requestedHours),
-          shift_fit: shiftFit,
-          segment,
-          selected_half: selectedHalf,
-          timezone: BOOKING_TIMEZONE,
-          source: BOOKING_SOURCE,
-          booked_by_user_id: user.id,
-          booked_by_email: user.email || '',
-          ...(notes ? { notes } : {}),
-        },
+    const createBookingBodyBase = {
+      start: bookingStartUtc,
+      eventTypeId: yacht.cal_event_type_id,
+      attendee: {
+        name: attendeeName,
+        email: attendeeEmail,
+        timeZone: BOOKING_TIMEZONE,
+        ...(attendeePhone ? { phoneNumber: attendeePhone } : {}),
       },
-    });
+      metadata: {
+        policy_version: BOOKING_POLICY_VERSION,
+        yacht_slug: yacht.slug,
+        start_hour: String(startHour),
+        end_hour: String(endHour),
+        requested_hours: String(requestedHours),
+        shift_fit: shiftFit,
+        segment,
+        selected_half: selectedHalf,
+        timezone: BOOKING_TIMEZONE,
+        source: BOOKING_SOURCE,
+        booked_by_user_id: user.id,
+        booked_by_email: user.email || '',
+        ...(notes ? { notes } : {}),
+        ...(attendeePhoneRaw?.trim() && !attendeePhone ? { phone_number_ignored: 'invalid_format' } : {}),
+      },
+    };
+
+    const createBooking = (body: Record<string, unknown>) =>
+      calRequest<{ data?: Record<string, unknown> }>({
+        config: getCalApiConfig(),
+        method: 'POST',
+        path: '/v2/bookings',
+        apiVersion: '2024-08-13',
+        body,
+      });
+
+    let bookingPayload: { data?: Record<string, unknown> };
+
+    try {
+      bookingPayload = await createBooking({
+        ...createBookingBodyBase,
+        lengthInMinutes,
+      });
+    } catch (error) {
+      if (!(error instanceof CalApiError)) throw error;
+
+      const providerMessage = normalizeCalErrorMessage(error, error.message);
+      const shouldRetryWithoutLength =
+        error.status === 400 &&
+        /can't specify\s+'lengthInMinutes'\s+because event type does not have multiple possible lengths/i.test(
+          providerMessage,
+        );
+
+      if (!shouldRetryWithoutLength) throw error;
+
+      bookingPayload = await createBooking(createBookingBodyBase);
+    }
 
     const booking = bookingPayload.data || {};
     const bookingUid =
@@ -361,14 +421,23 @@ Deno.serve(async (req) => {
       const isConflict =
         error.status === 409 ||
         (typeof message === 'string' && /not available|already booked|slot/i.test(message));
+      const isCalClientError = error.status >= 400 && error.status < 500;
+      const providerMessage = normalizeCalErrorMessage(error, message);
+
+      const responseStatusCode = isConflict ? 409 : isCalClientError ? 400 : 502;
 
       try {
         await logBookingRequest({
           supabase: serviceSupabase,
           endpoint: 'internal-booking-create',
           requestId,
-          statusCode: isConflict ? 409 : 502,
-          details: { reason: isConflict ? 'cal_conflict' : 'cal_error', calStatus: error.status, error: message },
+          statusCode: responseStatusCode,
+          details: {
+            reason: isConflict ? 'cal_conflict' : isCalClientError ? 'cal_client_error' : 'cal_error',
+            calStatus: error.status,
+            error: providerMessage,
+            payload: error.payload,
+          },
         });
       } catch (logError) {
         console.error('Failed to write booking request log:', logError);
@@ -377,6 +446,11 @@ Deno.serve(async (req) => {
       if (isConflict) {
         return json(req, 409, { error: 'Selected date/time is no longer available', requestId });
       }
+
+      if (isCalClientError) {
+        return json(req, 400, { error: providerMessage, requestId });
+      }
+
       return json(req, 502, { error: 'Upstream booking provider error', requestId });
     }
 
