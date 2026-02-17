@@ -215,7 +215,7 @@ export default function TimeGrid({
       <div className="relative">
         <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-6 bg-gradient-to-r from-card to-transparent" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-6 bg-gradient-to-l from-card to-transparent" />
-        <div className="overflow-x-auto pb-1 snap-x snap-mandatory">
+        <div className="overflow-x-auto overflow-y-visible pb-1 snap-x snap-mandatory">
           <div className="min-w-[980px]">
             <div
               className="grid border-b border-border/70 bg-muted/30"
