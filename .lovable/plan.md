@@ -1,89 +1,81 @@
 
-# Internal Booking Create 502 -- Root-Cause Investigation Report
 
----
+# Enforce 2-Hour Buffer Between Trips + Fix Build Error
 
-## A) Timeline of the 6 Most Recent Failures
+## Problem
 
-All failures share the **identical** Cal.com rejection:
+Two issues need fixing:
 
+1. **Build error** in `internal-booking-create`: Variables `attendeePhoneRaw` and `attendeePhone` are referenced in the `catch` block but defined inside the `try` block (out of scope).
+
+2. **Missing 2-hour inter-trip buffer**: When a day has a booking (e.g., 10am-6pm), the system still shows 3h and 4h options because Cal.com's slots API doesn't enforce our buffer policy. A new trip must have at least 2 hours of gap before or after any existing booking on the same day.
+
+### Example
+- Existing booking: 10:00 - 18:00
+- Available window: 06:00 - 10:00 (4 hours)
+- With 2h buffer required before the existing trip: new booking must END by 08:00 (10:00 - 2h)
+- That leaves only 06:00 - 08:00 = 2 hours, which is below the 3h minimum
+- Result: **No bookings should be available** on this day
+
+## Plan
+
+### Fix 1: Build Error (internal-booking-create)
+
+**File**: `supabase/functions/internal-booking-create/index.ts`
+
+Move the phone diagnostic logging to use values captured at the top of the catch block, or declare the variables before the try block. The simplest fix: remove the phone diagnostic fields from the catch block since they're out of scope (the error message from Cal already contains the relevant info).
+
+### Fix 2: 2-Hour Buffer Enforcement
+
+**File**: `supabase/functions/_shared/booking.ts`
+
+**Approach**: After computing booking intervals from Cal.com data, apply a 2-hour buffer zone around each booking. Filter out any provider-returned start times that would place a new trip within 2 hours of an existing one.
+
+**Constant**: Add `INTER_BOOKING_BUFFER_HOURS = 2` to the shared booking module.
+
+**Logic change in `buildAvailabilityForMonth`**:
+
+1. Collect raw booking intervals (startHour, endHour) per day (not just blocked hours -- we already compute these but discard the interval structure)
+2. When filtering provider starts for each duration, add a buffer check: for candidate start S with duration D, the new booking occupies [S, S+D). For every existing booking [B_start, B_end) on that day, require:
+   - `S + D <= B_start - 2` (new trip ends at least 2h before existing starts), OR
+   - `S >= B_end + 2` (new trip starts at least 2h after existing ends)
+3. If neither condition is met for any existing booking, reject that start time
+
+**Also update the client-side policy** in `src/lib/bookingPolicy.ts`:
+
+- Add `INTER_BOOKING_BUFFER_HOURS = 2` constant for documentation/frontend use
+
+### Technical Details
+
+```text
+Existing booking: [10, 18)
+Buffer = 2 hours
+
+Forbidden zone for new booking start S with duration D:
+  NOT (S + D <= 10 - 2)  AND  NOT (S >= 18 + 2)
+  = S + D > 8  AND  S < 20
+
+For D=3: S + 3 > 8 -> S > 5, and S < 20
+  So S in [6, 19] is forbidden. ALL starts blocked.
+
+For D=4: S + 4 > 8 -> S > 4, and S < 20  
+  So S in [5, 19] is forbidden. ALL starts blocked.
+
+Result: No options available -- correct!
 ```
-calStatus: 400
-error: "responses - {attendeePhoneNumber}invalid_number, "
-reason: cal_error
-status_code: 502
-```
 
-| # | Request ID | Timestamp (UTC) | Logged Status | Logged Reason |
-|---|------------|-----------------|---------------|---------------|
-| 1 | `e6886cce-...` | 2026-02-16 21:28:54 | 502 | `cal_error` |
-| 2 | `8fb07185-...` | 2026-02-16 21:29:09 | 502 | `cal_error` |
-| 3 | `56f56203-...` | 2026-02-16 22:00:38 | 502 | `cal_error` |
-| 4 | `664f83ef-...` | 2026-02-17 00:14:36 | 502 | `cal_error` |
-| 5 | `5d7c91c9-...` | 2026-02-17 00:14:43 | 502 | `cal_error` |
-| 6 | `8af1e632-...` | 2026-02-17 00:14:51 | 502 | `cal_error` |
+### Files Changed
 
-There is **no** variation between attempts -- all six are the same error class. The last successful booking was on 2026-02-14 (request `b4612362`), which did not include a phone number problem.
+| File | Change |
+|------|--------|
+| `supabase/functions/_shared/booking.ts` | Add `INTER_BOOKING_BUFFER_HOURS = 2`, collect booking intervals per day, filter provider starts by buffer rule |
+| `supabase/functions/internal-booking-create/index.ts` | Remove out-of-scope phone variables from catch block |
+| `src/lib/bookingPolicy.ts` | Add `INTER_BOOKING_BUFFER_HOURS = 2` constant |
 
----
+### Validation
 
-## B) Root-Cause Hypothesis Matrix
+After deploying:
+- A day with a 10am-6pm booking should show **zero** available options
+- A day with a 6am-9am booking should only allow starts at 11:00+ (9+2=11)
+- A day with a 6am-8am booking should allow starts at 10:00+ (8+2=10), so 3h at 10:00 or 15:00, 4h at 10:00-13:00 would be blocked by morning rule but others valid, etc.
 
-| Hypothesis | Evidence Supporting | Evidence Contradicting | Confidence |
-|---|---|---|---|
-| **1. Cal.com event type now requires/validates `attendeePhoneNumber`, and either (a) the phone value sent is rejected by Cal's validator, or (b) no phone is sent and Cal treats the missing field as invalid** | All 6 failures have identical Cal 400 with `{attendeePhoneNumber}invalid_number`. Successful bookings on Feb 13-14 did not trigger this. The Cal event type config may have changed between Feb 14 and Feb 16. | None. | **High** |
-| **2. Error classification bug: Cal 400 mapped to HTTP 502 instead of 400** | Logs show `calStatus: 400` but `reason: cal_error` and `status_code: 502`. Current source code (lines 424-427) should classify 400 as `isCalClientError=true` and return 400, not 502. This means the **deployed** version has different classification logic than the current repo code. | The current repo code looks correct, suggesting a recent code change that has NOT been redeployed. | **High** |
-| **3. Phone normalization passes but Cal rejects the format** | `normalizePhoneNumber` allows `+` followed by 8-15 digits. Cal.com may use a stricter libphonenumber-based validator that rejects certain valid-looking numbers. | If phone is empty/missing, the code skips the `phoneNumber` field entirely (line 344). | **Medium** |
-| **4. Cal event type now has phone as a required booking question, and omitting it triggers the error** | The error pattern `responses - {attendeePhoneNumber}invalid_number` suggests Cal treats it as a booking question response field, not just the attendee phone. If the event type added a required phone question, any booking without a valid phone would fail. | Would need Cal dashboard confirmation. | **Medium** |
-
----
-
-## C) Most Likely Root Cause (Two Issues)
-
-### Issue 1: Cal.com Phone Validation Rejection (Primary)
-
-Cal.com is rejecting the booking because of the `attendeePhoneNumber` field. This is happening on **every** attempt, which means either:
-
-- **The Cal event type was updated** (between Feb 14 and Feb 16) to require a phone number as a booking question/response field, and the phone value being sent does not satisfy Cal's validation -- or no phone is being sent at all and Cal requires it.
-- The frontend sends `phoneNumber: draft.attendeePhone.trim() || undefined` (Book.tsx line 764). If the user leaves phone blank, `undefined` is sent, the edge function's `normalizePhoneNumber` returns `null`, and `attendeePhone` on line 344 is falsy -- so the `phoneNumber` key is **omitted** from the Cal payload entirely. If Cal now requires this field, the omission causes the 400.
-
-### Issue 2: Misclassified Error Response (Secondary)
-
-The **deployed** edge function version maps this Cal 400 error to HTTP 502 (upstream provider error) rather than HTTP 400 (client validation error). The current repo code has the correct classification logic (`isCalClientError` check on line 424), but it was apparently **not deployed** after the fix was written. This is why the user sees "502 Bad Gateway" instead of a meaningful validation error.
-
----
-
-## D) Proposed Remediation Plan
-
-### Immediate Mitigation
-1. **Redeploy `internal-booking-create`** so the corrected error classification logic (already in the repo) goes live. This changes the 502 to a 400 with the actual Cal error message, giving the user actionable feedback.
-
-### Definitive Fix (two parts)
-
-**Part A -- Handle phone field for Cal compatibility:**
-- When `attendeePhone` is null/empty but the Cal event type requires it, either:
-  - Send a placeholder or skip the field gracefully
-  - OR detect the Cal booking question schema and surface a frontend validation requiring phone before submission
-- Recommended: Make the edge function **never** send `phoneNumber` in the attendee object if it's empty, AND handle the Cal 400 about phone numbers as a user-facing validation error (return 400 with a clear message like "A valid phone number is required for this yacht").
-
-**Part B -- Fix error classification in deployed code:**
-- Ensure the deployed version matches the repo. The current code correctly classifies Cal 400s as client errors (line 424-452), returning HTTP 400 to the frontend instead of 502.
-- Add a specific detection for the phone validation error pattern to return a user-friendly message.
-
-### Validation Plan
-1. After redeploying, submit a booking **without** a phone number -- expect a 400 with a clear message instead of 502.
-2. Submit a booking **with** a valid international phone number -- expect 200 success.
-3. Submit with an invalid phone format -- expect either client-side validation or a clear 400.
-4. Check `booking_request_logs` to confirm `reason: cal_client_error` (not `cal_error`) and `status_code: 400` (not 502).
-
-### Rollback / Guardrail Plan
-- If the fix causes regressions, the phone field can be stripped entirely from the Cal payload as a safe fallback (the `phoneNumber` spread on line 344 can be temporarily removed).
-- No database migration is involved, so rollback is a simple function redeploy.
-
----
-
-## E) Missing Data (to reach >90% confidence)
-
-1. **Cal.com event type configuration** for event type ID `4718180` -- specifically whether `attendeePhoneNumber` was recently added as a required booking question/response. This would confirm whether the issue is a missing required field vs. an invalid format.
-2. **The actual phone value** sent in the failing requests -- the `booking_request_logs` details don't capture the raw input payload. Adding the phone value to the log `details` on the 400 path would clarify whether a phone was sent (and rejected) or omitted (and required).
-3. **Deployed function hash/timestamp** -- confirming whether the current repo code is actually deployed or if there's a stale version running. A redeploy would resolve this ambiguity.
