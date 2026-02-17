@@ -23,7 +23,7 @@ export default function StepHeader({
         {stepLabel} {step} {ofLabel} {totalSteps}
       </p>
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${totalSteps}, minmax(0, 1fr))` }}>
         {Array.from({ length: totalSteps }, (_, index) => {
           const isActive = index + 1 <= step;
           return (
