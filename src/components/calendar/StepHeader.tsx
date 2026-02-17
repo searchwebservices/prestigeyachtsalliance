@@ -19,13 +19,9 @@ export default function StepHeader({
 }: Props) {
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-          {stepLabel} {step} {ofLabel} {totalSteps}
-        </p>
-        <h2 className="text-xl font-semibold text-foreground md:text-2xl">{title}</h2>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
-      </div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+        {stepLabel} {step} {ofLabel} {totalSteps}
+      </p>
 
       <div className="grid grid-cols-4 gap-2">
         {Array.from({ length: totalSteps }, (_, index) => {
