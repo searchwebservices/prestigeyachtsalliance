@@ -5,6 +5,7 @@ export const BOOKING_POLICY_VERSION = 'v3';
 export const BOOKING_TIMEZONE = 'America/Mazatlan';
 export const MIN_HOURS = 3;
 export const MAX_HOURS = 8;
+export const INTER_BOOKING_BUFFER_HOURS = 2;
 
 // Legacy export kept for compatibility
 export const PM_MAX_HOURS = 6;
@@ -773,8 +774,9 @@ export const buildAvailabilityForMonth = async ({
     ),
   ]);
 
-  // Build blocked hours per day from exact booked intervals
+  // Build blocked hours and booking intervals per day from exact booked intervals
   const blockedHoursMap = new Map<string, Set<number>>();
+  const bookingIntervalsMap = new Map<string, { startH: number; endH: number }[]>();
 
   for (const booking of bookings) {
     const status = getBookingStatus(booking);
@@ -791,25 +793,30 @@ export const buildAvailabilityForMonth = async ({
     const startH = localStart.hour;
     const endDateKey = localEnd.dateKey;
 
-    // If booking spans across days, only block hours on the start day within operating window
-    // (multi-day bookings are edge cases for this yacht use case)
     if (localStart.dateKey === endDateKey || localEnd.hour === 0) {
       const endH = localStart.dateKey === endDateKey ? localEnd.hour : OPERATING_END;
       const blocked = getOrCreate(blockedHoursMap, localStart.dateKey, () => new Set<number>());
       for (let h = startH; h < endH; h++) {
         if (h >= OPERATING_START && h < OPERATING_END) blocked.add(h);
       }
+      // Track interval for buffer enforcement
+      const intervals = getOrCreate(bookingIntervalsMap, localStart.dateKey, () => []);
+      intervals.push({ startH, endH });
     } else {
       // Spans multiple days - block remaining hours on start day
       const blocked1 = getOrCreate(blockedHoursMap, localStart.dateKey, () => new Set<number>());
       for (let h = startH; h < OPERATING_END; h++) {
         if (h >= OPERATING_START) blocked1.add(h);
       }
+      const intervals1 = getOrCreate(bookingIntervalsMap, localStart.dateKey, () => []);
+      intervals1.push({ startH, endH: OPERATING_END });
       // Block hours on end day
       const blocked2 = getOrCreate(blockedHoursMap, endDateKey, () => new Set<number>());
       for (let h = OPERATING_START; h < localEnd.hour; h++) {
         blocked2.add(h);
       }
+      const intervals2 = getOrCreate(bookingIntervalsMap, endDateKey, () => []);
+      intervals2.push({ startH: OPERATING_START, endH: localEnd.hour });
     }
   }
 
@@ -847,16 +854,28 @@ export const buildAvailabilityForMonth = async ({
       }
     }
 
-    // Compute validStartsByDuration: intersect provider-valid starts with policy
+    // Compute validStartsByDuration: intersect provider-valid starts with policy + buffer rule
+    const dayIntervals = bookingIntervalsMap.get(dateKey) || [];
     const validStartsByDuration: Record<string, number[]> = {};
     for (let i = 0; i < DURATIONS.length; i++) {
       const dur = DURATIONS[i];
       const providerStarts = providerStartsMaps[i].get(dateKey) || new Set<number>();
       const validStarts: number[] = [];
       for (const sh of providerStarts) {
-        if (isStartAllowedByPolicy(dur, sh)) {
-          validStarts.push(sh);
+        if (!isStartAllowedByPolicy(dur, sh)) continue;
+
+        // Buffer check: new booking [sh, sh+dur) must have >= 2h gap from every existing booking
+        const newEnd = sh + dur;
+        let buffered = true;
+        for (const interval of dayIntervals) {
+          const clearBefore = newEnd <= interval.startH - INTER_BOOKING_BUFFER_HOURS;
+          const clearAfter = sh >= interval.endH + INTER_BOOKING_BUFFER_HOURS;
+          if (!clearBefore && !clearAfter) {
+            buffered = false;
+            break;
+          }
         }
+        if (buffered) validStarts.push(sh);
       }
       validStarts.sort((a, b) => a - b);
       validStartsByDuration[String(dur)] = validStarts;

@@ -3,6 +3,7 @@ export const BOOKING_TIMEZONE = 'America/Mazatlan';
 
 export const BOOKING_MIN_HOURS = 3;
 export const BOOKING_MAX_HOURS = 8;
+export const INTER_BOOKING_BUFFER_HOURS = 2;
 
 export const BOOKING_DAY_START_HOUR = 6;
 export const BOOKING_DAY_END_HOUR = 18;
