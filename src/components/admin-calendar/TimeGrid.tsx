@@ -212,11 +212,8 @@ export default function TimeGrid({
       <div className="px-4 pt-3 text-xs text-muted-foreground">
         {copy.horizontalScrollHint}
       </div>
-      <div className="relative">
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-6 bg-gradient-to-r from-card to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-6 bg-gradient-to-l from-card to-transparent" />
-        <div className="overflow-x-auto overflow-y-visible pb-1 snap-x snap-mandatory">
-          <div className="min-w-[980px]">
+      <div>
+        <div className="min-w-[980px]">
             <div
               className="grid border-b border-border/70 bg-muted/30"
               style={{
@@ -339,7 +336,6 @@ export default function TimeGrid({
                   </div>
                 );
               })}
-            </div>
           </div>
         </div>
       </div>
