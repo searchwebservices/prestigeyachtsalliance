@@ -424,6 +424,10 @@ Deno.serve(async (req) => {
       const isCalClientError = error.status >= 400 && error.status < 500;
       const providerMessage = normalizeCalErrorMessage(error, message);
 
+      // Detect phone-specific Cal rejection for user-friendly messaging
+      const isPhoneError = /attendeePhoneNumber|invalid_number/i.test(providerMessage) ||
+        (error.payload && JSON.stringify(error.payload).includes('attendeePhoneNumber'));
+
       const responseStatusCode = isConflict ? 409 : isCalClientError ? 400 : 502;
 
       try {
@@ -437,6 +441,9 @@ Deno.serve(async (req) => {
             calStatus: error.status,
             error: providerMessage,
             payload: error.payload,
+            // Diagnostic: capture raw phone input for debugging
+            attendeePhoneRaw: attendeePhoneRaw ?? null,
+            attendeePhoneNormalized: attendeePhone ?? null,
           },
         });
       } catch (logError) {
@@ -448,7 +455,10 @@ Deno.serve(async (req) => {
       }
 
       if (isCalClientError) {
-        return json(req, 400, { error: providerMessage, requestId });
+        const userMessage = isPhoneError
+          ? 'A valid international phone number is required for this booking (e.g. +1234567890)'
+          : providerMessage;
+        return json(req, 400, { error: userMessage, requestId });
       }
 
       return json(req, 502, { error: 'Upstream booking provider error', requestId });
