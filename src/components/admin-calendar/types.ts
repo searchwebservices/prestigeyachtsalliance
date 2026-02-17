@@ -110,18 +110,3 @@ export type ReservationRecord = {
   completionScore: number | null;
 };
 
-export type TeamReservationOversightItem = {
-  reservationId: string | null;
-  bookingUid: string;
-  yachtSlug: string;
-  yachtName: string;
-  startAt: string;
-  endAt: string;
-  status: string;
-  guestName: string;
-  completionScore: number | null;
-  missingFields: string[];
-  lastAction: string | null;
-  lastActionAt: string | null;
-  lastUpdatedAt: string | null;
-};
