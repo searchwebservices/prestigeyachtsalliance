@@ -937,10 +937,12 @@ export default function Book() {
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-5xl space-y-5">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold text-foreground md:text-3xl">{copy.title}</h1>
-          <p className="text-sm text-muted-foreground md:text-base">{copy.subtitle}</p>
-        </div>
+        {confirmation && (
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold text-foreground md:text-3xl">{copy.title}</h1>
+            <p className="text-sm text-muted-foreground md:text-base">{copy.subtitle}</p>
+          </div>
+        )}
 
         {preselectMessage && (
           <Alert>
