@@ -140,6 +140,7 @@ export default function ImageCropper({ open, onClose, imageSrc, onCropComplete }
                 ref={imgRef}
                 src={imageSrc}
                 alt="Crop preview"
+                crossOrigin="anonymous"
                 onLoad={onImageLoad}
                 className="max-w-full max-h-[55vh] object-contain"
               />
