@@ -1992,22 +1992,8 @@ export default function Calendar() {
   return (
     <DashboardLayout>
       <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
-            {copy.title}
-          </h1>
-          <p className="text-sm text-muted-foreground md:text-base">
-            {copy.subtitle}
-          </p>
-        </div>
-
         <Card className="border-border/70">
           <CardHeader className="space-y-4">
-            <div>
-              <CardTitle>{copy.title}</CardTitle>
-              <CardDescription>{copy.subtitle}</CardDescription>
-            </div>
-
             <CalendarToolbar
               rangeLabel={rangeLabel}
               viewMode={viewMode}
