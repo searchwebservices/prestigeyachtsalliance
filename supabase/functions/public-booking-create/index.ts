@@ -40,6 +40,40 @@ type CreateBookingBody = {
 
 const BOOKING_SOURCE = 'prestigeyachtsalliance_public_booking_v3';
 
+
+const normalizePhoneNumber = (value: string | undefined) => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  let normalized = trimmed.replace(/[^\d+]/g, '');
+
+  if (normalized.startsWith('00')) {
+    normalized = `+${normalized.slice(2)}`;
+  }
+
+  if (!normalized.startsWith('+')) return null;
+
+  const digitsOnly = normalized.slice(1);
+  if (!/^\d{8,15}$/.test(digitsOnly)) return null;
+
+  return `+${digitsOnly}`;
+};
+
+const normalizeCalErrorMessage = (error: CalApiError, fallback: string) => {
+  if (typeof fallback === 'string' && fallback.trim()) return fallback;
+
+  const payload = error.payload;
+  if (payload && typeof payload === 'object') {
+    const message = (payload as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+
+    const errorMessage = (payload as { error?: { message?: unknown } }).error?.message;
+    if (typeof errorMessage === 'string' && errorMessage.trim()) return errorMessage;
+  }
+
+  return 'Booking provider rejected this request';
+};
+
 const readRateLimitSettings = () => {
   const maxRequests = Number(Deno.env.get('BOOKING_RATE_LIMIT_MAX_REQUESTS') || '12');
   const windowMinutes = Number(Deno.env.get('BOOKING_RATE_LIMIT_WINDOW_MINUTES') || '60');
@@ -91,7 +125,8 @@ Deno.serve(async (req) => {
     const half = body.half ?? null;
     const attendeeName = body.attendee?.name?.trim();
     const attendeeEmail = body.attendee?.email?.trim().toLowerCase();
-    const attendeePhone = body.attendee?.phoneNumber?.trim();
+    const attendeePhoneRaw = body.attendee?.phoneNumber;
+    const attendeePhone = normalizePhoneNumber(attendeePhoneRaw);
     const notes = body.notes?.trim() || '';
 
     if (!slug || !date || !isDateKey(date)) {
@@ -313,38 +348,61 @@ Deno.serve(async (req) => {
     // Derive selected_half for legacy compat
     const selectedHalf = half || (segment === 'am' ? 'am' : segment === 'pm' ? 'pm' : '');
 
-    const bookingPayload = await calRequest<{
-      data?: Record<string, unknown>;
-    }>({
-      config: getCalApiConfig(),
-      method: 'POST',
-      path: '/v2/bookings',
-      apiVersion: '2024-08-13',
-      body: {
-        start: bookingStartUtc,
-        eventTypeId: yacht.cal_event_type_id,
-        lengthInMinutes,
-        attendee: {
-          name: attendeeName,
-          email: attendeeEmail,
-          timeZone: BOOKING_TIMEZONE,
-          ...(attendeePhone ? { phoneNumber: attendeePhone } : {}),
-        },
-        metadata: {
-          policy_version: BOOKING_POLICY_VERSION,
-          yacht_slug: yacht.slug,
-          start_hour: String(startHour),
-          end_hour: String(endHour),
-          requested_hours: String(requestedHours),
-          shift_fit: shiftFit,
-          segment,
-          selected_half: selectedHalf,
-          timezone: BOOKING_TIMEZONE,
-          source: BOOKING_SOURCE,
-          ...(notes ? { notes } : {}),
-        },
+    const createBookingBodyBase = {
+      start: bookingStartUtc,
+      eventTypeId: yacht.cal_event_type_id,
+      attendee: {
+        name: attendeeName,
+        email: attendeeEmail,
+        timeZone: BOOKING_TIMEZONE,
+        ...(attendeePhone ? { phoneNumber: attendeePhone } : {}),
       },
-    });
+      metadata: {
+        policy_version: BOOKING_POLICY_VERSION,
+        yacht_slug: yacht.slug,
+        start_hour: String(startHour),
+        end_hour: String(endHour),
+        requested_hours: String(requestedHours),
+        shift_fit: shiftFit,
+        segment,
+        selected_half: selectedHalf,
+        timezone: BOOKING_TIMEZONE,
+        source: BOOKING_SOURCE,
+        ...(notes ? { notes } : {}),
+        ...(attendeePhoneRaw?.trim() && !attendeePhone ? { phone_number_ignored: 'invalid_format' } : {}),
+      },
+    };
+
+    const createBooking = (body: Record<string, unknown>) =>
+      calRequest<{ data?: Record<string, unknown> }>({
+        config: getCalApiConfig(),
+        method: 'POST',
+        path: '/v2/bookings',
+        apiVersion: '2024-08-13',
+        body,
+      });
+
+    let bookingPayload: { data?: Record<string, unknown> };
+
+    try {
+      bookingPayload = await createBooking({
+        ...createBookingBodyBase,
+        lengthInMinutes,
+      });
+    } catch (error) {
+      if (!(error instanceof CalApiError)) throw error;
+
+      const providerMessage = normalizeCalErrorMessage(error, error.message);
+      const shouldRetryWithoutLength =
+        error.status === 400 &&
+        /can't specify\s+'lengthInMinutes'\s+because event type does not have multiple possible lengths/i.test(
+          providerMessage,
+        );
+
+      if (!shouldRetryWithoutLength) throw error;
+
+      bookingPayload = await createBooking(createBookingBodyBase);
+    }
 
     const booking = bookingPayload.data || {};
     const bookingUid =
@@ -383,22 +441,54 @@ Deno.serve(async (req) => {
     console.error('public-booking-create error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
 
-    if (error instanceof CalApiError) {
+    const errorStatus =
+      error instanceof CalApiError
+        ? error.status
+        : typeof error === 'object' && error !== null && typeof (error as { status?: unknown }).status === 'number'
+          ? (error as { status: number }).status
+          : null;
+    const errorPayload =
+      error instanceof CalApiError
+        ? error.payload
+        : typeof error === 'object' && error !== null
+          ? (error as { payload?: unknown }).payload ?? null
+          : null;
+    const isCalLikeError = error instanceof CalApiError || (errorStatus !== null && errorStatus >= 400);
+
+    if (isCalLikeError && errorStatus !== null) {
+      const providerMessage =
+        error instanceof CalApiError
+          ? normalizeCalErrorMessage(error, message)
+          : typeof message === 'string' && message.trim()
+            ? message
+            : 'Booking provider rejected this request';
+
       const isConflict =
-        error.status === 409 ||
-        (typeof message === 'string' &&
-          /not available|already booked|slot/i.test(message));
+        errorStatus === 409 ||
+        (typeof providerMessage === 'string' && /not available|already booked|slot/i.test(providerMessage));
+      const isCalClientError = errorStatus >= 400 && errorStatus < 500;
+      const isPhoneInvalid = /attendeephonenumber.*invalid_number/i.test(providerMessage);
+
+      const responseStatusCode = isConflict ? 409 : isCalClientError ? 400 : 502;
+      const reason = isConflict
+        ? 'cal_conflict'
+        : isPhoneInvalid
+          ? 'cal_phone_invalid'
+          : isCalClientError
+            ? 'cal_client_error'
+            : 'cal_error';
 
       try {
         await logBookingRequest({
           supabase,
           endpoint: 'public-booking-create',
           requestId,
-          statusCode: isConflict ? 409 : 502,
+          statusCode: responseStatusCode,
           details: {
-            reason: isConflict ? 'cal_conflict' : 'cal_error',
-            calStatus: error.status,
-            error: message,
+            reason,
+            calStatus: errorStatus,
+            error: providerMessage,
+            payload: errorPayload,
           },
         });
       } catch (logError) {
@@ -408,6 +498,21 @@ Deno.serve(async (req) => {
       if (isConflict) {
         return json(req, 409, { error: 'Selected date/time is no longer available', requestId });
       }
+
+      if (isCalClientError) {
+        if (isPhoneInvalid) {
+          return json(req, 400, {
+            error: 'A valid attendee phone number is required by the booking provider (use international format, e.g. +521234567890).',
+            requestId,
+          });
+        }
+
+        return json(req, 400, {
+          error: providerMessage,
+          requestId,
+        });
+      }
+
       return json(req, 502, { error: 'Upstream booking provider error', requestId });
     }
 
