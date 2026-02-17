@@ -460,7 +460,7 @@ export default function Book() {
   const stepSubtitle = copy.stepSubtitles[step];
 
   const canContinue = useMemo(() => {
-    if (step === 1) return !!draft.yachtSlug;
+    if (step === 1) return !!draft.yachtSlug && (selectedYacht?.bookingReady ?? false);
     if (step === 2) return !!draft.date && hasAnyValidStartOnSelectedDay;
     if (step === 3) return !!draft.requestedHours && startHourOptions.length > 0;
     if (step === 4) return draft.startHour !== null && startHourOptions.includes(draft.startHour);
@@ -471,6 +471,7 @@ export default function Book() {
     draft.startHour,
     draft.yachtSlug,
     hasAnyValidStartOnSelectedDay,
+    selectedYacht,
     startHourOptions,
     step,
   ]);
@@ -497,8 +498,6 @@ export default function Book() {
         supabase
           .from('yachts')
           .select('id,name,slug,vessel_type,capacity,booking_mode,cal_event_type_id,display_order,is_flagship')
-          .eq('booking_mode', 'policy_v2')
-          .not('cal_event_type_id', 'is', null)
           .order('display_order', { ascending: true }),
         supabase
           .from('yacht_images')
@@ -526,6 +525,7 @@ export default function Book() {
         capacity: row.capacity,
         imageUrl: imagesByYacht.get(row.id),
         isFlagship: row.is_flagship || false,
+        bookingReady: row.booking_mode === 'policy_v2' && row.cal_event_type_id != null,
       }));
 
       setYachts(rows);

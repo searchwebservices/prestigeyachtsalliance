@@ -12,6 +12,7 @@ export type CalendarYachtOption = {
   capacity: number;
   imageUrl?: string;
   isFlagship?: boolean;
+  bookingReady?: boolean;
 };
 
 type Props = {
@@ -70,6 +71,7 @@ export default function StepYacht({
     <div className="grid gap-3 sm:grid-cols-2">
       {yachts.map((yacht) => {
         const selected = yacht.slug === selectedYachtSlug;
+        const bookingReady = yacht.bookingReady !== false;
 
         return (
           <Card
@@ -78,7 +80,8 @@ export default function StepYacht({
               'overflow-hidden cursor-pointer transition-all duration-300 group',
               selected
                 ? 'ring-2 ring-primary shadow-lg'
-                : 'hover:shadow-md border-border/50'
+                : 'hover:shadow-md border-border/50',
+              !bookingReady && 'opacity-60'
             )}
             onClick={() => onSelect(yacht.slug)}
           >
@@ -115,6 +118,9 @@ export default function StepYacht({
                   <Users className="w-3.5 h-3.5" />
                   <span>{yacht.capacity} guests</span>
                 </div>
+                {!bookingReady && (
+                  <p className="text-xs text-muted-foreground mt-1 italic">Booking not set up</p>
+                )}
               </div>
             </div>
           </Card>
