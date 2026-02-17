@@ -493,21 +493,39 @@ export default function Book() {
     setYachtsError(null);
 
     try {
-      const { data, error } = await supabase
-        .from('yachts')
-        .select('id,name,slug,vessel_type,capacity,booking_mode,cal_event_type_id,display_order')
-        .eq('booking_mode', 'policy_v2')
-        .not('cal_event_type_id', 'is', null)
-        .order('display_order', { ascending: true });
+      const [yachtsResult, imagesResult] = await Promise.all([
+        supabase
+          .from('yachts')
+          .select('id,name,slug,vessel_type,capacity,booking_mode,cal_event_type_id,display_order,is_flagship')
+          .eq('booking_mode', 'policy_v2')
+          .not('cal_event_type_id', 'is', null)
+          .order('display_order', { ascending: true }),
+        supabase
+          .from('yacht_images')
+          .select('yacht_id,image_url,is_primary,display_order')
+          .order('display_order', { ascending: true }),
+      ]);
 
-      if (error) throw error;
+      if (yachtsResult.error) throw yachtsResult.error;
 
-      const rows = (data || []).map((row) => ({
+      const imagesByYacht = new Map<string, string>();
+      for (const img of imagesResult.data || []) {
+        if (!imagesByYacht.has(img.yacht_id)) {
+          imagesByYacht.set(img.yacht_id, img.image_url);
+        }
+        if (img.is_primary) {
+          imagesByYacht.set(img.yacht_id, img.image_url);
+        }
+      }
+
+      const rows = (yachtsResult.data || []).map((row) => ({
         id: row.id,
         name: row.name,
         slug: row.slug,
         vessel_type: row.vessel_type,
         capacity: row.capacity,
+        imageUrl: imagesByYacht.get(row.id),
+        isFlagship: row.is_flagship || false,
       }));
 
       setYachts(rows);
