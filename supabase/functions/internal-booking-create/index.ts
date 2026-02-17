@@ -441,9 +441,6 @@ Deno.serve(async (req) => {
             calStatus: error.status,
             error: providerMessage,
             payload: error.payload,
-            // Diagnostic: capture raw phone input for debugging
-            attendeePhoneRaw: attendeePhoneRaw ?? null,
-            attendeePhoneNormalized: attendeePhone ?? null,
           },
         });
       } catch (logError) {
