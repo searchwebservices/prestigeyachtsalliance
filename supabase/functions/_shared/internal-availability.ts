@@ -5,8 +5,10 @@ import {
   parseMonthKey,
   toTimeZoneParts,
   zonedDateTimeToUtcIso,
-  type createServiceRoleClient,
 } from './booking.ts';
+import type { createServiceRoleClient } from './booking.ts';
+
+type SupabaseLike = ReturnType<typeof createServiceRoleClient>;
 
 export const OPEN_START = 6;
 export const OPEN_END = 18;
