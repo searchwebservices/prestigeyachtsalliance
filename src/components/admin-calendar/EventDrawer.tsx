@@ -34,7 +34,6 @@ type Copy = {
   attendeePhone: string;
   notes: string;
   noNotes: string;
-  openCal: string;
   when: string;
   duration: string;
   actionDeckTitle: string;
@@ -615,15 +614,7 @@ export default function EventDrawer({
                   </Button>
                 </div>
               )}
-
               <div className="mt-3 flex flex-wrap gap-2">
-                {event.calBookingUrl ? (
-                  <Button type="button" variant="outline" asChild>
-                    <a href={event.calBookingUrl} target="_blank" rel="noreferrer">
-                      {copy.openCal}
-                    </a>
-                  </Button>
-                ) : null}
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                   {copy.close}
                 </Button>
