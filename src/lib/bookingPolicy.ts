@@ -70,25 +70,15 @@ export const getSegmentLabelFromShiftFit = (shiftFit: ShiftFit) => {
   return 'FLEXIBLE';
 };
 
+// Simplified policy: any 3–8h block that fits within 06:00-18:00.
+// Inter-booking 2h buffer is enforced server-side via reservation_details.
 export const isStartAllowedByPolicy = (requestedHours: number, startHour: number) => {
   if (!Number.isInteger(requestedHours) || requestedHours < BOOKING_MIN_HOURS || requestedHours > BOOKING_MAX_HOURS) {
     return false;
   }
-
   if (!Number.isInteger(startHour)) return false;
-
   const endHour = startHour + requestedHours;
-  if (startHour < BOOKING_DAY_START_HOUR || endHour > BOOKING_DAY_END_HOUR) return false;
-
-  if (requestedHours === 3) {
-    return endHour <= BOOKING_MORNING_END_HOUR || startHour >= BOOKING_AFTERNOON_START_HOUR;
-  }
-
-  if (requestedHours === 4) {
-    return endHour <= BOOKING_MORNING_END_HOUR;
-  }
-
-  return true;
+  return startHour >= BOOKING_DAY_START_HOUR && endHour <= BOOKING_DAY_END_HOUR;
 };
 
 export const getTimeRangeLabel = (requestedHours: number, startHour: number | null) => {
