@@ -86,13 +86,24 @@ const getAllowedOrigins = () =>
     .map(toTrimmed)
     .filter(Boolean);
 
+const isLovableHostedOrigin = (origin: string) => {
+  try {
+    const hostname = new URL(origin).hostname;
+    return hostname.endsWith('.lovable.app') || hostname.endsWith('.lovableproject.com');
+  } catch {
+    return false;
+  }
+};
+
+const isAllowedOriginValue = (origin: string, allowedOrigins: string[]) =>
+  allowedOrigins.length === 0 || allowedOrigins.includes(origin) || isLovableHostedOrigin(origin);
+
 export const isOriginAllowed = (req: Request) => {
   const origin = req.headers.get('origin');
   const allowedOrigins = getAllowedOrigins();
 
   if (!origin) return true;
-  if (allowedOrigins.length === 0) return true;
-  return allowedOrigins.includes(origin);
+  return isAllowedOriginValue(origin, allowedOrigins);
 };
 
 export const getCorsHeaders = (req: Request) => {
@@ -100,7 +111,7 @@ export const getCorsHeaders = (req: Request) => {
   const allowedOrigins = getAllowedOrigins();
 
   const allowOrigin =
-    !origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin) ? origin ?? '*' : 'null';
+    !origin || isAllowedOriginValue(origin, allowedOrigins) ? origin ?? '*' : 'null';
 
   return {
     'Access-Control-Allow-Origin': allowOrigin,
