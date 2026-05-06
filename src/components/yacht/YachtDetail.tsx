@@ -74,14 +74,12 @@ export default function YachtDetail({ yacht, images, onUpdate, defaultImage, onC
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState<Partial<Yacht>>({});
-  const isInternallyBookable = yacht.booking_mode === 'policy_v2' && Boolean(yacht.cal_event_type_id);
+  const isInternallyBookable = yacht.booking_mode === 'policy_v2';
   const internalBookPath = `/book?yacht=${encodeURIComponent(yacht.slug)}&step=day`;
   const bookDisabledReason =
     yacht.booking_mode !== 'policy_v2'
-      ? 'This yacht must be on Policy V2 before booking is enabled.'
-      : !yacht.cal_event_type_id
-        ? 'This yacht needs a Cal Event Type ID before booking is enabled.'
-        : null;
+      ? 'This yacht must use the internal booking system before booking is enabled.'
+      : null;
 
   const handleCopy = async (text: string, context: string) => {
     await navigator.clipboard.writeText(text);
@@ -216,8 +214,6 @@ ${yacht.owner_notes || 'No notes available.'}`;
       public_price: yacht.public_price,
       commission_amount: yacht.commission_amount,
       owner_notes: yacht.owner_notes,
-      cal_embed_url: yacht.cal_embed_url,
-      cal_event_type_id: yacht.cal_event_type_id,
       booking_mode: yacht.booking_mode,
       booking_public_enabled: yacht.booking_public_enabled,
       booking_v2_live_from: yacht.booking_v2_live_from,
@@ -231,25 +227,15 @@ ${yacht.owner_notes || 'No notes available.'}`;
   };
 
   const handleSave = async () => {
-    if (editData.booking_mode === 'policy_v2' && !editData.cal_event_type_id) {
-      toast({
-        variant: 'destructive',
-        title: 'Cal Event Type ID required',
-        description: 'Set a Cal Event Type ID before enabling policy_v2 mode.',
-      });
-      return;
-    }
-
     setIsSaving(true);
 
     const normalizedData: Partial<Yacht> = { ...editData };
     if (normalizedData.booking_mode === 'legacy_embed') {
       normalizedData.booking_public_enabled = false;
-      normalizedData.cal_event_type_id = null;
       normalizedData.booking_v2_live_from = null;
-    } else if (normalizedData.booking_mode === 'policy_v2') {
-      normalizedData.cal_embed_url = null;
     }
+    normalizedData.cal_embed_url = null;
+    normalizedData.cal_event_type_id = null;
     
     const { error } = await supabase
       .from('yachts')
