@@ -247,6 +247,7 @@ export type Database = {
           concierge_notes: string
           created_at: string
           created_by: string | null
+          created_by_email: string
           dietary_notes: string
           end_at: string
           guest_count: number | null
@@ -275,6 +276,7 @@ export type Database = {
           concierge_notes?: string
           created_at?: string
           created_by?: string | null
+          created_by_email?: string
           dietary_notes?: string
           end_at: string
           guest_count?: number | null
@@ -303,6 +305,7 @@ export type Database = {
           concierge_notes?: string
           created_at?: string
           created_by?: string | null
+          created_by_email?: string
           dietary_notes?: string
           end_at?: string
           guest_count?: number | null
@@ -537,6 +540,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_public_reservation: {
+        Args: {
+          p_attendee_email: string
+          p_attendee_name: string
+          p_attendee_phone: string
+          p_end_at: string
+          p_notes: string
+          p_start_at: string
+          p_yacht_name: string
+          p_yacht_slug: string
+        }
+        Returns: {
+          booking_uid: string
+          id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
