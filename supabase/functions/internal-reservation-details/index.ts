@@ -183,11 +183,11 @@ const checkYachtEligibility = async (
 ) => {
   const { data: yacht, error } = await serviceSupabase
     .from('yachts')
-    .select('id,name,slug,booking_mode,cal_event_type_id')
+    .select('id,name,slug,booking_mode')
     .eq('slug', slug)
     .maybeSingle();
   if (error) throw error;
-  if (!yacht || yacht.booking_mode !== 'policy_v2' || !yacht.cal_event_type_id) return null;
+  if (!yacht || yacht.booking_mode !== 'policy_v2') return null;
   return yacht;
 };
 
@@ -239,36 +239,10 @@ Deno.serve(async (req) => {
         return json(req, 404, { error: 'Yacht not found or not eligible', requestId });
       }
 
-      // Try loading existing record
-      let record = await loadFullRecord({ serviceSupabase, bookingUid });
-
-      // Seed from Cal if missing
+      const record = await loadFullRecord({ serviceSupabase, bookingUid });
       if (!record) {
-        const calConfig = getCalApiConfig();
-        try {
-          await seedFromCal({
-            serviceSupabase,
-            calConfig,
-            bookingUid,
-            yachtSlug: yacht.slug,
-            yachtName: yacht.name,
-            userId: user.id,
-          });
-        } catch (err) {
-          if (err instanceof CalApiError && err.status === 404) {
-            await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode: 404, details: { reason: 'invalid_input', bookingUid, note: 'booking_not_found_in_cal' } });
-            return json(req, 404, { error: 'Booking not found', requestId });
-          }
-          throw err;
-        }
-
-        record = await loadFullRecord({ serviceSupabase, bookingUid });
-        if (!record) {
-          await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode: 500, details: { reason: 'unhandled_error', note: 'seed_failed' } });
-          return json(req, 500, { error: 'Failed to seed reservation', requestId });
-        }
-
-        await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode: 200, details: { reason: 'seeded_from_cal', bookingUid, slug } });
+        await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode: 404, details: { reason: 'reservation_not_found_internal_only', bookingUid, slug } });
+        return json(req, 404, { error: 'Reservation not found', requestId });
       }
 
       return json(req, 200, { requestId, ...record });
