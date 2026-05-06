@@ -428,11 +428,10 @@ Deno.serve(async (req) => {
     return json(req, 405, { error: 'Method not allowed', requestId });
   } catch (error) {
     console.error(`${endpoint} error:`, error);
-    const isCalError = error instanceof CalApiError;
-    const statusCode = isCalError ? 502 : 500;
-    const message = isCalError ? `Upstream calendar service error: ${error.message}` : (error instanceof Error ? error.message : 'Unknown error');
+    const statusCode = 500;
+    const message = error instanceof Error ? error.message : 'Unknown error';
     try {
-      await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode, details: { reason: isCalError ? 'cal_error' : 'unhandled_error', error: message } });
+      await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode, details: { reason: 'unhandled_error', error: message } });
     } catch (logErr) { console.error('Failed to log:', logErr); }
     return json(req, statusCode, { error: message, requestId });
   }
