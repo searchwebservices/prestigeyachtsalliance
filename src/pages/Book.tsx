@@ -497,7 +497,7 @@ export default function Book() {
       const [yachtsResult, imagesResult] = await Promise.all([
         supabase
           .from('yachts')
-          .select('id,name,slug,vessel_type,capacity,booking_mode,cal_event_type_id,display_order,is_flagship')
+          .select('id,name,slug,vessel_type,capacity,booking_mode,display_order,is_flagship')
           .order('display_order', { ascending: true }),
         supabase
           .from('yacht_images')

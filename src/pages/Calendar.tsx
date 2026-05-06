@@ -107,7 +107,7 @@ const parseDateKeyToDate = (dateKey: string) => {
 const COPY = {
   en: {
     title: "Calendar",
-    subtitle: "Admin schedule view synced from Cal.com bookings.",
+    subtitle: "Admin schedule view synced from internal reservations.",
     loadingAuth: "Loading access permissions...",
     loadingYachts: "Loading yachts...",
     loadingEvents: "Loading bookings...",
@@ -157,7 +157,6 @@ const COPY = {
       attendeePhone: "Phone",
       notes: "Notes",
       noNotes: "No notes attached to this booking.",
-      openCal: "Open in Cal.com",
       copyFullDetails: "Copy full details",
       exportCsv: "Export CSV",
       copiedSuccess: "Reservation details copied to clipboard.",
@@ -258,7 +257,7 @@ const COPY = {
   es: {
     title: "Calendario",
     subtitle:
-      "Vista de agenda para admins sincronizada con reservas de Cal.com.",
+      "Vista de agenda para admins sincronizada con reservas internas.",
     loadingAuth: "Cargando permisos de acceso...",
     loadingYachts: "Cargando yates...",
     loadingEvents: "Cargando reservas...",
@@ -309,7 +308,6 @@ const COPY = {
       attendeePhone: "Teléfono",
       notes: "Notas",
       noNotes: "No hay notas en esta reserva.",
-      openCal: "Abrir en Cal.com",
       copyFullDetails: "Copiar detalles",
       exportCsv: "Exportar CSV",
       copiedSuccess: "Detalles de la reserva copiados al portapapeles.",
@@ -742,8 +740,6 @@ const normalizeEvents = (value: unknown): AdminCalendarEvent[] => {
         attendeePhone:
           asString(row.attendeePhone) || asString(row.attendee_phone),
         notes: asString(row.notes),
-        calBookingUrl:
-          asString(row.calBookingUrl) || asString(row.cal_booking_url),
       };
     })
     .filter((item): item is AdminCalendarEvent => item !== null);
@@ -917,10 +913,9 @@ export default function Calendar() {
       const { data, error: yachtsError } = await supabase
         .from("yachts")
         .select(
-          "id,name,slug,vessel_type,capacity,display_order,booking_mode,cal_event_type_id",
+          "id,name,slug,vessel_type,capacity,display_order,booking_mode",
         )
         .eq("booking_mode", "policy_v2")
-        .not("cal_event_type_id", "is", null)
         .order("display_order", { ascending: true });
 
       if (yachtsError) throw yachtsError;

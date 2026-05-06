@@ -1,15 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
-  BOOKING_TIMEZONE,
-  CalApiError,
-  calRequest,
   createServiceRoleClient,
-  getCalApiConfig,
   getCorsHeaders,
   isOriginAllowed,
   json,
   logBookingRequest,
-  toTimeZoneParts,
 } from '../_shared/booking.ts';
 
 const ENDPOINT = 'internal-reservation-details';
@@ -83,81 +78,6 @@ const computeCompletionScore = (
   }
 
   return { score, missing };
-};
-
-// ── Seed from Cal ─────────────────────────────────────────────────────
-
-const seedFromCal = async ({
-  serviceSupabase,
-  calConfig,
-  bookingUid,
-  yachtSlug,
-  yachtName,
-  userId,
-}: {
-  serviceSupabase: ReturnType<typeof createServiceRoleClient>;
-  calConfig: ReturnType<typeof getCalApiConfig>;
-  bookingUid: string;
-  yachtSlug: string;
-  yachtName: string;
-  userId: string;
-}) => {
-  const result = await calRequest<{ data?: Record<string, unknown> }>({
-    config: calConfig,
-    method: 'GET',
-    path: `/v2/bookings/${bookingUid}`,
-    apiVersion: '2024-08-13',
-  });
-
-  const booking = result.data;
-  if (!booking || !isRecord(booking)) return null;
-
-  const startIso = asStr(booking.start) || asStr(booking.startTime) || '';
-  const endIso = asStr(booking.end) || asStr(booking.endTime) || '';
-
-  const attendees = Array.isArray(booking.attendees) ? booking.attendees : [];
-  const first = attendees.length > 0 && isRecord(attendees[0]) ? attendees[0] : null;
-  const guestName = asStr(first?.name) || '';
-  const guestEmail = asStr(first?.email) || '';
-  const guestPhone = asStr(first?.phoneNumber) || asStr(first?.phone) || '';
-
-  // Upsert guest
-  const { data: guestRow } = await serviceSupabase
-    .from('guest_profiles')
-    .insert({
-      full_name: guestName,
-      email: guestEmail,
-      phone: guestPhone,
-      created_by: userId,
-      updated_by: userId,
-    })
-    .select('id')
-    .single();
-
-  const guestId = guestRow?.id || null;
-
-  // Insert reservation
-  const { data: resRow, error: resErr } = await serviceSupabase
-    .from('reservation_details')
-    .insert({
-      booking_uid_current: bookingUid,
-      booking_uid_history: [],
-      yacht_slug: yachtSlug,
-      yacht_name: yachtName,
-      start_at: startIso,
-      end_at: endIso,
-      guest_profile_id: guestId,
-      source: 'seeded_from_cal',
-      status: 'booked',
-      created_by: userId,
-      updated_by: userId,
-    })
-    .select('*')
-    .single();
-
-  if (resErr) throw resErr;
-
-  return { reservation: resRow, guestId };
 };
 
 // ── Load full record ──────────────────────────────────────────────────
@@ -262,11 +182,11 @@ const checkYachtEligibility = async (
 ) => {
   const { data: yacht, error } = await serviceSupabase
     .from('yachts')
-    .select('id,name,slug,booking_mode,cal_event_type_id')
+    .select('id,name,slug,booking_mode')
     .eq('slug', slug)
     .maybeSingle();
   if (error) throw error;
-  if (!yacht || yacht.booking_mode !== 'policy_v2' || !yacht.cal_event_type_id) return null;
+  if (!yacht || yacht.booking_mode !== 'policy_v2') return null;
   return yacht;
 };
 
@@ -318,36 +238,10 @@ Deno.serve(async (req) => {
         return json(req, 404, { error: 'Yacht not found or not eligible', requestId });
       }
 
-      // Try loading existing record
-      let record = await loadFullRecord({ serviceSupabase, bookingUid });
-
-      // Seed from Cal if missing
+      const record = await loadFullRecord({ serviceSupabase, bookingUid });
       if (!record) {
-        const calConfig = getCalApiConfig();
-        try {
-          await seedFromCal({
-            serviceSupabase,
-            calConfig,
-            bookingUid,
-            yachtSlug: yacht.slug,
-            yachtName: yacht.name,
-            userId: user.id,
-          });
-        } catch (err) {
-          if (err instanceof CalApiError && err.status === 404) {
-            await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode: 404, details: { reason: 'invalid_input', bookingUid, note: 'booking_not_found_in_cal' } });
-            return json(req, 404, { error: 'Booking not found', requestId });
-          }
-          throw err;
-        }
-
-        record = await loadFullRecord({ serviceSupabase, bookingUid });
-        if (!record) {
-          await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode: 500, details: { reason: 'unhandled_error', note: 'seed_failed' } });
-          return json(req, 500, { error: 'Failed to seed reservation', requestId });
-        }
-
-        await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode: 200, details: { reason: 'seeded_from_cal', bookingUid, slug } });
+        await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode: 404, details: { reason: 'reservation_not_found_internal_only', bookingUid, slug } });
+        return json(req, 404, { error: 'Reservation not found', requestId });
       }
 
       return json(req, 200, { requestId, ...record });
@@ -533,11 +427,10 @@ Deno.serve(async (req) => {
     return json(req, 405, { error: 'Method not allowed', requestId });
   } catch (error) {
     console.error(`${endpoint} error:`, error);
-    const isCalError = error instanceof CalApiError;
-    const statusCode = isCalError ? 502 : 500;
-    const message = isCalError ? `Upstream calendar service error: ${error.message}` : (error instanceof Error ? error.message : 'Unknown error');
+    const statusCode = 500;
+    const message = error instanceof Error ? error.message : 'Unknown error';
     try {
-      await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode, details: { reason: isCalError ? 'cal_error' : 'unhandled_error', error: message } });
+      await logBookingRequest({ supabase: serviceSupabase, endpoint, requestId, statusCode, details: { reason: 'unhandled_error', error: message } });
     } catch (logErr) { console.error('Failed to log:', logErr); }
     return json(req, statusCode, { error: message, requestId });
   }
