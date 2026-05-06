@@ -43,7 +43,7 @@ const yachtSchema = z
     public_price: z.coerce.number().optional(),
     commission_amount: z.coerce.number().optional(),
     owner_notes: z.string().optional(),
-    booking_mode: z.enum(['legacy_embed', 'policy_v2']).default('legacy_embed'),
+    booking_mode: z.enum(['legacy_embed', 'policy_v2']).default('policy_v2'),
     booking_public_enabled: z.boolean().default(false),
     booking_v2_live_from: z.string().optional(),
   });
@@ -70,9 +70,9 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
       public_price: undefined,
       commission_amount: undefined,
       owner_notes: '',
-      booking_mode: 'legacy_embed',
-      booking_public_enabled: false,
-      booking_v2_live_from: '',
+      booking_mode: 'policy_v2',
+      booking_public_enabled: true,
+      booking_v2_live_from: new Date().toISOString().slice(0, 10),
     },
   });
   const bookingMode = form.watch('booking_mode');
