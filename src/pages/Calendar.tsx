@@ -917,7 +917,7 @@ export default function Calendar() {
       const { data, error: yachtsError } = await supabase
         .from("yachts")
         .select(
-          "id,name,slug,vessel_type,capacity,display_order,booking_mode,cal_event_type_id",
+          "id,name,slug,vessel_type,capacity,display_order,booking_mode",
         )
         .eq("booking_mode", "policy_v2")
         .order("display_order", { ascending: true });
