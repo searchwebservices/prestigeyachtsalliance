@@ -43,7 +43,7 @@ const yachtSchema = z
     public_price: z.coerce.number().optional(),
     commission_amount: z.coerce.number().optional(),
     owner_notes: z.string().optional(),
-    booking_mode: z.enum(['legacy_embed', 'policy_v2']).default('legacy_embed'),
+    booking_mode: z.enum(['legacy_embed', 'policy_v2']).default('policy_v2'),
     booking_public_enabled: z.boolean().default(false),
     booking_v2_live_from: z.string().optional(),
   });
