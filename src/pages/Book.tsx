@@ -525,7 +525,7 @@ export default function Book() {
         capacity: row.capacity,
         imageUrl: imagesByYacht.get(row.id),
         isFlagship: row.is_flagship || false,
-        bookingReady: row.booking_mode === 'policy_v2' && row.cal_event_type_id != null,
+        bookingReady: row.booking_mode === 'policy_v2',
       }));
 
       setYachts(rows);
