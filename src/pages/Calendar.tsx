@@ -740,8 +740,6 @@ const normalizeEvents = (value: unknown): AdminCalendarEvent[] => {
         attendeePhone:
           asString(row.attendeePhone) || asString(row.attendee_phone),
         notes: asString(row.notes),
-        calBookingUrl:
-          asString(row.calBookingUrl) || asString(row.cal_booking_url),
       };
     })
     .filter((item): item is AdminCalendarEvent => item !== null);
