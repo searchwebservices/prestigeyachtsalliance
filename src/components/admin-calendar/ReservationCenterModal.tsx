@@ -57,7 +57,6 @@ type Copy = {
   savingDetails: string;
   cancelEdit: string;
   close: string;
-  openCal: string;
   copyFullDetails: string;
   exportCsv: string;
   copiedSuccess: string;
@@ -1030,13 +1029,6 @@ export default function ReservationCenterModal({
                       <Download className="mr-2 h-4 w-4" />
                       {copy.exportCsv}
                     </Button>
-                    {event.calBookingUrl ? (
-                      <Button type="button" variant="ghost" asChild>
-                        <a href={event.calBookingUrl} target="_blank" rel="noreferrer">
-                          {copy.openCal}
-                        </a>
-                      </Button>
-                    ) : null}
                     {canEdit && event.bookingUid ? (
                       <>
                         <Button type="button" variant="secondary" onClick={() => setMode('reschedule')}>
