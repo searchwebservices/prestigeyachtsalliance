@@ -107,7 +107,7 @@ const parseDateKeyToDate = (dateKey: string) => {
 const COPY = {
   en: {
     title: "Calendar",
-    subtitle: "Admin schedule view synced from Cal.com bookings.",
+    subtitle: "Admin schedule view synced from internal reservations.",
     loadingAuth: "Loading access permissions...",
     loadingYachts: "Loading yachts...",
     loadingEvents: "Loading bookings...",
@@ -157,7 +157,6 @@ const COPY = {
       attendeePhone: "Phone",
       notes: "Notes",
       noNotes: "No notes attached to this booking.",
-      openCal: "Open in Cal.com",
       copyFullDetails: "Copy full details",
       exportCsv: "Export CSV",
       copiedSuccess: "Reservation details copied to clipboard.",
@@ -258,7 +257,7 @@ const COPY = {
   es: {
     title: "Calendario",
     subtitle:
-      "Vista de agenda para admins sincronizada con reservas de Cal.com.",
+      "Vista de agenda para admins sincronizada con reservas internas.",
     loadingAuth: "Cargando permisos de acceso...",
     loadingYachts: "Cargando yates...",
     loadingEvents: "Cargando reservas...",
@@ -309,7 +308,6 @@ const COPY = {
       attendeePhone: "Teléfono",
       notes: "Notas",
       noNotes: "No hay notas en esta reserva.",
-      openCal: "Abrir en Cal.com",
       copyFullDetails: "Copiar detalles",
       exportCsv: "Exportar CSV",
       copiedSuccess: "Detalles de la reserva copiados al portapapeles.",
