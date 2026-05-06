@@ -1,15 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   BOOKING_TIMEZONE,
-  CalApiError,
-  calRequest,
   createServiceRoleClient,
-  getCalApiConfig,
   getCorsHeaders,
   isOriginAllowed,
   json,
   logBookingRequest,
-  toTimeZoneParts,
 } from '../_shared/booking.ts';
 
 const ENDPOINT = 'internal-reservation-details';
@@ -83,81 +79,6 @@ const computeCompletionScore = (
   }
 
   return { score, missing };
-};
-
-// ── Seed from Cal ─────────────────────────────────────────────────────
-
-const seedFromCal = async ({
-  serviceSupabase,
-  calConfig,
-  bookingUid,
-  yachtSlug,
-  yachtName,
-  userId,
-}: {
-  serviceSupabase: ReturnType<typeof createServiceRoleClient>;
-  calConfig: ReturnType<typeof getCalApiConfig>;
-  bookingUid: string;
-  yachtSlug: string;
-  yachtName: string;
-  userId: string;
-}) => {
-  const result = await calRequest<{ data?: Record<string, unknown> }>({
-    config: calConfig,
-    method: 'GET',
-    path: `/v2/bookings/${bookingUid}`,
-    apiVersion: '2024-08-13',
-  });
-
-  const booking = result.data;
-  if (!booking || !isRecord(booking)) return null;
-
-  const startIso = asStr(booking.start) || asStr(booking.startTime) || '';
-  const endIso = asStr(booking.end) || asStr(booking.endTime) || '';
-
-  const attendees = Array.isArray(booking.attendees) ? booking.attendees : [];
-  const first = attendees.length > 0 && isRecord(attendees[0]) ? attendees[0] : null;
-  const guestName = asStr(first?.name) || '';
-  const guestEmail = asStr(first?.email) || '';
-  const guestPhone = asStr(first?.phoneNumber) || asStr(first?.phone) || '';
-
-  // Upsert guest
-  const { data: guestRow } = await serviceSupabase
-    .from('guest_profiles')
-    .insert({
-      full_name: guestName,
-      email: guestEmail,
-      phone: guestPhone,
-      created_by: userId,
-      updated_by: userId,
-    })
-    .select('id')
-    .single();
-
-  const guestId = guestRow?.id || null;
-
-  // Insert reservation
-  const { data: resRow, error: resErr } = await serviceSupabase
-    .from('reservation_details')
-    .insert({
-      booking_uid_current: bookingUid,
-      booking_uid_history: [],
-      yacht_slug: yachtSlug,
-      yacht_name: yachtName,
-      start_at: startIso,
-      end_at: endIso,
-      guest_profile_id: guestId,
-      source: 'seeded_from_cal',
-      status: 'booked',
-      created_by: userId,
-      updated_by: userId,
-    })
-    .select('*')
-    .single();
-
-  if (resErr) throw resErr;
-
-  return { reservation: resRow, guestId };
 };
 
 // ── Load full record ──────────────────────────────────────────────────
