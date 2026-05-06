@@ -920,7 +920,6 @@ export default function Calendar() {
           "id,name,slug,vessel_type,capacity,display_order,booking_mode,cal_event_type_id",
         )
         .eq("booking_mode", "policy_v2")
-        .not("cal_event_type_id", "is", null)
         .order("display_order", { ascending: true });
 
       if (yachtsError) throw yachtsError;
