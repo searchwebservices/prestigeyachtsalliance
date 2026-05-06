@@ -73,13 +73,19 @@ Deno.serve(async (req) => {
       return json(req, 404, { error: 'Yacht is not eligible for internal booking', requestId });
     }
 
-    const availability = await buildAvailabilityForMonth({
-      supabase: serviceSupabase,
-      yachtSlug: yacht.slug,
-      monthKey: month,
-      timeZone: BOOKING_TIMEZONE,
-      liveFromDate: yacht.booking_v2_live_from,
-    });
+    let availability;
+    try {
+      availability = await buildAvailabilityForMonth({
+        supabase: serviceSupabase,
+        yachtSlug: yacht.slug,
+        monthKey: month,
+        timeZone: BOOKING_TIMEZONE,
+        liveFromDate: yacht.booking_v2_live_from,
+      });
+    } catch (buildErr) {
+      console.error('avail build failed', buildErr);
+      throw buildErr;
+    }
 
     const payload = {
       requestId,
