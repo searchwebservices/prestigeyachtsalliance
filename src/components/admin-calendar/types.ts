@@ -23,7 +23,6 @@ export type AdminCalendarEvent = {
   attendeeEmail: string | null;
   attendeePhone: string | null;
   notes: string | null;
-  calBookingUrl?: string | null;
 };
 
 export type RescheduleDraft = {
