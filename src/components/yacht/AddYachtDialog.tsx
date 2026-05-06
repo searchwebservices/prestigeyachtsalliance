@@ -279,8 +279,8 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
                         <SelectValue placeholder="Select booking mode" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="legacy_embed">Legacy Embed</SelectItem>
-                        <SelectItem value="policy_v2">Policy V2 (Self-hosted API)</SelectItem>
+                        <SelectItem value="legacy_embed">Not bookable</SelectItem>
+                        <SelectItem value="policy_v2">Internal booking system</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
@@ -289,42 +289,8 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
               )}
             />
 
-            {bookingMode === 'legacy_embed' ? (
-              <FormField
-                control={form.control}
-                name="cal_embed_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cal.com Embed URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://cal.com/..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ) : (
+            {bookingMode === 'policy_v2' && (
               <>
-                <FormField
-                  control={form.control}
-                  name="cal_event_type_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cal Event Type ID *</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="12345"
-                          value={field.value ?? ''}
-                          onChange={(event) => field.onChange(event.target.value)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <FormField
                   control={form.control}
                   name="booking_v2_live_from"
