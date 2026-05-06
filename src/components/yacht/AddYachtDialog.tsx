@@ -70,9 +70,9 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
       public_price: undefined,
       commission_amount: undefined,
       owner_notes: '',
-      booking_mode: 'legacy_embed',
-      booking_public_enabled: false,
-      booking_v2_live_from: '',
+      booking_mode: 'policy_v2',
+      booking_public_enabled: true,
+      booking_v2_live_from: new Date().toISOString().slice(0, 10),
     },
   });
   const bookingMode = form.watch('booking_mode');
