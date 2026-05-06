@@ -26,7 +26,6 @@ type NormalizedCalendarEvent = {
   attendeeEmail: string | null;
   attendeePhone: string | null;
   notes: string | null;
-  calBookingUrl: string | null;
 };
 
 Deno.serve(async (req) => {
@@ -102,7 +101,6 @@ Deno.serve(async (req) => {
         attendeeEmail: guest?.email || null,
         attendeePhone: guest?.phone || null,
         notes: r.concierge_notes || null,
-        calBookingUrl: null,
       };
     });
 
