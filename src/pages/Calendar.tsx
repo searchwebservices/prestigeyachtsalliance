@@ -755,7 +755,7 @@ export default function Calendar() {
   const copy = COPY[language];
   const locale = language === "es" ? es : enUS;
 
-  const [viewMode, setViewMode] = useState<CalendarViewMode>("week");
+  const [viewMode, setViewMode] = useState<CalendarViewMode>("month");
   const [anchorDate, setAnchorDate] = useState<Date>(new Date());
   const [yachts, setYachts] = useState<AdminCalendarYacht[]>([]);
   const [selectedYachtSlug, setSelectedYachtSlug] = useState<string | null>(
