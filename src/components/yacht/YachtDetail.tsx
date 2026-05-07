@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import ImageManager from './ImageManager';
+import YachtMonthCalendar from './YachtMonthCalendar';
 import { format } from 'date-fns';
 import { useExchangeRate, convertToMXN, formatMXN } from '@/hooks/useExchangeRate';
 
