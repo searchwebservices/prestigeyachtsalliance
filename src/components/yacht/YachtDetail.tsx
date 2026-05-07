@@ -14,6 +14,7 @@ import {
   DollarSign,
   FileText,
   Image as ImageIcon,
+  CalendarDays,
   MessageSquare,
   Pencil,
   Save,
