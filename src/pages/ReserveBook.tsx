@@ -40,9 +40,6 @@ type Experience = {
   feature: string;
   socialProof: string;
   imageSrc: string;
-  // The reference screenshots embed a marketing card on one side and the photo
-  // on the other — `photoSide` tells the cropping CSS which half to keep.
-  photoSide: 'left' | 'right';
 };
 
 const EXPERIENCES: Experience[] = [
@@ -54,7 +51,6 @@ const EXPERIENCES: Experience[] = [
     feature: 'Full Day Charters · Cleaning Included',
     socialProof: 'Trusted by 300+ anglers',
     imageSrc: sportFishingImg,
-    photoSide: 'left',
   },
   {
     id: 'snorkeling',
@@ -64,7 +60,6 @@ const EXPERIENCES: Experience[] = [
     feature: 'Half or Full Day · All Gear Included',
     socialProof: 'Trusted by 600+ explorers',
     imageSrc: snorkelingImg,
-    photoSide: 'right',
   },
   {
     id: 'sunset-cruise',
@@ -74,7 +69,6 @@ const EXPERIENCES: Experience[] = [
     feature: 'Duration: 4 Hours · Premium Dinner Available',
     socialProof: 'Trusted by 500+ couples',
     imageSrc: sunsetCruiseImg,
-    photoSide: 'right',
   },
   {
     id: 'private-celebration',
@@ -84,7 +78,6 @@ const EXPERIENCES: Experience[] = [
     feature: 'Custom Packages · Open Bar Included',
     socialProof: 'Trusted by 400+ celebrations',
     imageSrc: privateCelebrationImg,
-    photoSide: 'left',
   },
 ];
 
@@ -138,45 +131,51 @@ function ExperienceCard({
       onClick={onSelect}
       aria-pressed={selected}
       className={cn(
-        'group relative flex w-full flex-col overflow-hidden rounded-2xl border-2 bg-card text-left shadow-lg transition-all duration-300',
-        'hover:-translate-y-0.5 hover:shadow-2xl',
+        'group relative flex w-full overflow-hidden rounded-xl border-2 bg-card text-left shadow-md transition-all duration-300',
+        'flex-row md:flex-col',
+        'hover:shadow-xl md:hover:-translate-y-0.5',
         selected
           ? 'border-gold shadow-gold ring-2 ring-gold/40'
           : 'border-border/60 hover:border-gold/60'
       )}
     >
-      <div className="relative aspect-square w-full overflow-hidden bg-muted">
+      <div
+        className={cn(
+          'relative shrink-0 overflow-hidden bg-muted',
+          'aspect-square w-24 sm:w-28',
+          'md:aspect-[4/3] md:w-full'
+        )}
+      >
         <img
           src={experience.imageSrc}
           alt=""
-          className={cn(
-            'h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]',
-            experience.photoSide === 'left' ? 'object-left' : 'object-right'
-          )}
+          className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
         />
         {selected && (
-          <div className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-gold text-foreground shadow-lg">
-            <Check className="h-4 w-4" />
+          <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-gold text-foreground shadow-lg md:h-7 md:w-7">
+            <Check className="h-3 w-3 md:h-3.5 md:w-3.5" />
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-5">
-        <h3 className="text-xl font-semibold leading-tight text-foreground">
+      <div className="flex flex-1 flex-col gap-1 p-3 md:gap-1.5 md:p-3.5">
+        <h3 className="text-sm font-semibold leading-tight text-foreground md:text-base">
           {experience.title}
         </h3>
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <p className="line-clamp-2 text-xs leading-snug text-muted-foreground">
           {experience.description}
         </p>
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-gold">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-gold md:text-[11px]">
           {experience.feature}
         </p>
-        <div className="mt-auto flex items-center gap-2 pt-2">
+        <div className="mt-auto flex items-center gap-1.5 pt-0.5">
           <div className="flex items-center text-gold" aria-hidden>
             {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} className="h-3.5 w-3.5 fill-gold" />
+              <Star key={i} className="h-2.5 w-2.5 fill-gold md:h-3 md:w-3" />
             ))}
           </div>
-          <span className="text-xs text-muted-foreground">{experience.socialProof}</span>
+          <span className="text-[10px] text-muted-foreground md:text-[11px]">
+            {experience.socialProof}
+          </span>
         </div>
       </div>
     </button>
@@ -326,7 +325,7 @@ export default function ReserveBook() {
 
   return (
     <HeroBackdrop>
-      <div className="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8 md:px-6 md:py-12">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-6 md:px-6 md:py-8">
         <Link
           to="/reserve"
           className="inline-flex items-center gap-2 self-start text-sm text-white/80 transition hover:text-white"
@@ -364,25 +363,25 @@ export default function ReserveBook() {
           </Card>
         ) : (
           <>
-            <div className="mt-4 mb-6 text-white">
-              <p className="text-xs font-medium uppercase tracking-[0.3em] text-white/70">
+            <div className="mt-3 mb-4 text-white md:mt-4 md:mb-5">
+              <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/70 md:text-xs">
                 Reserve your day
               </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
+              <h1 className="mt-1.5 text-2xl font-semibold tracking-tight md:text-3xl">
                 {stepTitle}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm text-white/75 md:text-base">
+              <p className="mt-1 max-w-2xl text-xs text-white/75 md:text-sm">
                 {stepSubtitle}
               </p>
-              <div className="mt-5">
+              <div className="mt-3">
                 <StepIndicator step={step} />
               </div>
             </div>
 
             <Card className="border-white/30 bg-card/95 shadow-2xl backdrop-blur-xl">
-              <CardContent className="p-5 md:p-6">
+              <CardContent className="p-4 md:p-5">
                 {step === 1 && (
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-4 md:gap-4">
                     {EXPERIENCES.map((exp) => (
                       <ExperienceCard
                         key={exp.id}
