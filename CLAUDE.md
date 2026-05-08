@@ -22,12 +22,16 @@ This is a Vite + React 18 + TypeScript SPA backed by Supabase (Postgres + Auth +
 
 ### Routes (`src/App.tsx`)
 
-- `/` — `Index` (public landing)
-- `/book/:yachtSlug` — `PublicBooking` (no auth, public reservation flow)
+- `/` — `Index` (redirect-only: `/dashboard` if authed, else `/reserve`)
+- `/login` — `Login` (auto-redirects to `/dashboard` if already authed)
+- `/reserve` — `Reserve` (public chooser: book vs. inquire)
+- `/reserve/book` — `ReserveBook` (public Cal.com booking wizard, dual-writes to Netlify Forms)
+- `/reserve/inquire` — `ReserveInquire` (public lead-capture form via Netlify Forms)
 - `/book` — `Book` (5-step internal wizard, auth required)
 - `/calendar` — admin calendar + reservation center (auth, admin role enforced server-side)
 - `/dashboard`, `/team`, `/deposit`, `/settings` — auth-gated
-- All authed routes wrap in `<ProtectedRoute>`; `App.tsx` composes providers in this order: `QueryClient → ThemeProvider → LanguageProvider → AuthProvider → UserPreferenceSync → TooltipProvider → BrowserRouter`.
+- All authed routes wrap in `<ProtectedRoute>` (redirects to `/login`). `/reserve*` and `/login` are the only public surfaces.
+- `App.tsx` composes providers in this order: `QueryClient → BrowserRouter → ThemeProvider → LanguageProvider → AuthProvider → UserPreferenceSync → TooltipProvider → Routes`. **`BrowserRouter` must stay outermost** — Lovable's `componentTagger` (dev-mode preview) renders/probes components outside of `<Routes>`, and any shared layout calling `useNavigate`/`useLocation` (e.g. `DashboardLayout`) will throw `useNavigate() may be used only in the context of a <Router> component` if the Router context isn't an ancestor.
 
 ### Auth model (`src/contexts/AuthContext.tsx`)
 
