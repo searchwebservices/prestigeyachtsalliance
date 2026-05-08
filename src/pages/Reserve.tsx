@@ -25,17 +25,17 @@ export default function Reserve() {
           >
             <div className="flex items-center gap-3 text-white/80">
               <Anchor className="h-5 w-5" />
-              <span className="text-[11px] font-medium uppercase tracking-[0.3em]">Ready to book</span>
+              <span className="text-[11px] font-medium uppercase tracking-[0.3em]">I know what I want</span>
             </div>
             <h2 className="mt-5 text-2xl font-semibold leading-tight text-white md:text-3xl">
-              I know what I want — let me book now.
+              Pick your experience and the days that work.
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-white/75 md:text-base">
-              Pick your yacht, your day, your hours, and your start time. We'll confirm by email and
-              Ricardo will close the loop.
+              Tell us the experience you're after and a couple of dates that fit your trip — we'll
+              call to lock in the perfect day on the water.
             </p>
             <div className="mt-10 flex items-center gap-2 text-white">
-              <span className="text-sm font-medium">Start booking</span>
+              <span className="text-sm font-medium">Reserve your day</span>
               <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </div>
           </Link>
