@@ -21,7 +21,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, user, isLoading: authLoading } = useAuth();
   const { resolvedTheme } = useTheme();
   const { language } = useLanguage();
   const navigate = useNavigate();
@@ -32,6 +32,12 @@ export default function Login() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

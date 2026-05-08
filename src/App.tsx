@@ -9,13 +9,16 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import UserPreferenceSync from "@/components/preferences/UserPreferenceSync";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
+import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import TeamManagement from "./pages/TeamManagement";
 import Deposit from "./pages/Deposit";
-import PublicBooking from "./pages/PublicBooking";
 import Book from "./pages/Book";
 import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
+import Reserve from "./pages/Reserve";
+import ReserveBook from "./pages/ReserveBook";
+import ReserveInquire from "./pages/ReserveInquire";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +35,10 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/reserve" element={<Reserve />} />
+                <Route path="/reserve/book" element={<ReserveBook />} />
+                <Route path="/reserve/inquire" element={<ReserveInquire />} />
                 <Route
                   path="/dashboard"
                   element={
@@ -80,7 +87,6 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/book/:yachtSlug" element={<PublicBooking />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

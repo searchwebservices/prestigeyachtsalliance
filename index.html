@@ -20,6 +20,37 @@
   </head>
 
   <body>
+    <!--
+      Hidden static forms for Netlify Forms detection at build time.
+      The React app submits via fetch() with `form-name` set to one of these names.
+      Field names below MUST match the keys posted by src/lib/netlifyForms.ts.
+    -->
+    <form name="reservation" data-netlify="true" data-netlify-honeypot="bot-field" hidden>
+      <input type="text" name="yacht_slug" />
+      <input type="text" name="yacht_name" />
+      <input type="text" name="date" />
+      <input type="text" name="start_time" />
+      <input type="text" name="end_time" />
+      <input type="text" name="duration_hours" />
+      <input type="text" name="guest_name" />
+      <input type="email" name="guest_email" />
+      <input type="tel" name="guest_phone" />
+      <textarea name="notes"></textarea>
+      <input type="text" name="cal_booking_id" />
+      <input type="text" name="transaction_id" />
+      <input type="text" name="bot-field" />
+    </form>
+
+    <form name="inquiry" data-netlify="true" data-netlify-honeypot="bot-field" hidden>
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+      <input type="tel" name="phone" />
+      <input type="number" name="guests" />
+      <input type="text" name="experience" />
+      <textarea name="notes"></textarea>
+      <input type="text" name="bot-field" />
+    </form>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
