@@ -8,6 +8,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import UserPreferenceSync from "@/components/preferences/UserPreferenceSync";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AgencyRoute from "@/components/AgencyRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -19,6 +20,7 @@ import Settings from "./pages/Settings";
 import Reserve from "./pages/Reserve";
 import ReserveBook from "./pages/ReserveBook";
 import ReserveInquire from "./pages/ReserveInquire";
+import AgencyOS from "./pages/AgencyOS";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -85,6 +87,14 @@ const App = () => (
                     <ProtectedRoute>
                       <Deposit />
                     </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/agency"
+                  element={
+                    <AgencyRoute>
+                      <AgencyOS />
+                    </AgencyRoute>
                   }
                 />
                 <Route path="*" element={<NotFound />} />

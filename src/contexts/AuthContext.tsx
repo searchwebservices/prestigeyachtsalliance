@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type AppRole = 'admin' | 'staff' | null;
+type AppRole = 'admin' | 'staff' | 'agency_manager' | null;
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +12,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  isAgencyManager: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -100,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     isAdmin: role === 'admin',
+    isAgencyManager: role === 'agency_manager',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -113,6 +115,7 @@ const defaultAuthContext: AuthContextType = {
   signIn: async () => ({ error: new Error('AuthProvider not mounted') }),
   signOut: async () => {},
   isAdmin: false,
+  isAgencyManager: false,
 };
 
 export function useAuth() {
