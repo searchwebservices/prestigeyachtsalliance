@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ClipboardCopy,
   Download,
+  FileText,
   Plus,
   RefreshCcw,
   ShieldAlert,
@@ -10,6 +11,9 @@ import {
   UserRound,
   Waves,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -418,8 +422,10 @@ export default function ReservationCenterModal({
   onCustomEventNameChange,
   onOpenChange,
 }: Props) {
+  const { user } = useAuth();
   const [mode, setMode] = useState<ReservationCenterView>('view');
   const [pendingAction, setPendingAction] = useState<'save' | 'reschedule' | 'cancel' | 'export' | null>(null);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const [draftRecord, setDraftRecord] = useState<ReservationRecord | null>(null);
   const [rescheduleDraft, setRescheduleDraft] = useState<RescheduleDraft>({
     date: null,
@@ -755,6 +761,55 @@ export default function ReservationCenterModal({
     setInlineSuccess(copy.detailsSaved);
   };
 
+  const handleGenerateInvoice = async () => {
+    if (!event || !draftRecord) return;
+    setIsGeneratingInvoice(true);
+    try {
+      const start = new Date(event.startIso);
+      const end = new Date(event.endIso);
+      const durationHours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+      const tripDate = event.startIso.slice(0, 10);
+
+      // Fetch hourly_rate from yachts table
+      const { data: yacht, error: yachtErr } = await supabase
+        .from('yachts')
+        .select('hourly_rate, id')
+        .eq('slug', event.yachtSlug)
+        .maybeSingle();
+
+      if (yachtErr) throw yachtErr;
+      if (!yacht?.hourly_rate) {
+        toast.error('Cannot generate invoice', { description: 'This yacht has no hourly rate set. Add one in the yacht pricing tab first.' });
+        return;
+      }
+
+      const { error: insertErr } = await supabase.from('invoices').insert({
+        booking_uid: event.bookingUid ?? `manual-${Date.now()}`,
+        reservation_id: draftRecord.reservation.id ?? undefined,
+        yacht_id: yacht.id,
+        yacht_name: event.yachtName,
+        yacht_slug: event.yachtSlug,
+        guest_name: draftRecord.guest.fullName || event.attendeeName || null,
+        guest_email: draftRecord.guest.email || event.attendeeEmail || null,
+        trip_date: tripDate,
+        duration_hours: durationHours,
+        hourly_rate_usd: yacht.hourly_rate,
+        status: 'draft',
+        created_by: user?.id ?? null,
+      });
+
+      if (insertErr) throw insertErr;
+
+      toast.success('Invoice generated', {
+        description: `Draft invoice created for ${event.yachtName} — ${durationHours}h × $${yacht.hourly_rate}/hr.`,
+      });
+    } catch (err: any) {
+      toast.error('Invoice generation failed', { description: err.message ?? 'Unknown error.' });
+    } finally {
+      setIsGeneratingInvoice(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[96vh] w-[calc(100vw-1rem)] max-w-6xl overflow-hidden p-0 sm:max-h-[92vh] sm:w-full">
@@ -1029,6 +1084,17 @@ export default function ReservationCenterModal({
                       <Download className="mr-2 h-4 w-4" />
                       {copy.exportCsv}
                     </Button>
+                    {event.bookingUid ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handleGenerateInvoice()}
+                        disabled={isGeneratingInvoice}
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        {isGeneratingInvoice ? 'Generating…' : 'Generate Invoice'}
+                      </Button>
+                    ) : null}
                     {canEdit && event.bookingUid ? (
                       <>
                         <Button type="button" variant="secondary" onClick={() => setMode('reschedule')}>

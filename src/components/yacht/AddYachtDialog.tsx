@@ -40,6 +40,7 @@ const yachtSchema = z
     is_flagship: z.boolean().default(false),
     team_description: z.string().optional(),
     sales_description: z.string().optional(),
+    hourly_rate: z.coerce.number().optional(),
     public_price: z.coerce.number().optional(),
     commission_amount: z.coerce.number().optional(),
     owner_notes: z.string().optional(),
@@ -67,6 +68,7 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
       is_flagship: false,
       team_description: '',
       sales_description: '',
+      hourly_rate: undefined,
       public_price: undefined,
       commission_amount: undefined,
       owner_notes: '',
@@ -97,6 +99,7 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
         is_flagship: data.is_flagship,
         team_description: data.team_description || null,
         sales_description: data.sales_description || null,
+        hourly_rate: data.hourly_rate || null,
         public_price: data.public_price || null,
         commission_amount: data.commission_amount || null,
         owner_notes: data.owner_notes || null,
@@ -183,12 +186,12 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="public_price"
+                name="hourly_rate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Public Price (USD)</FormLabel>
+                    <FormLabel>Hourly Rate (USD)</FormLabel>
                     <FormControl>
-                      <Input type="number" min={0} placeholder="5000" {...field} />
+                      <Input type="number" min={0} placeholder="400" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -209,6 +212,20 @@ export default function AddYachtDialog({ onSuccess }: AddYachtDialogProps) {
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="public_price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quoted Price — legacy (USD)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} placeholder="5000" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

@@ -164,6 +164,84 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          id: string
+          invoice_number: string | null
+          reservation_id: string | null
+          booking_uid: string
+          yacht_id: string | null
+          yacht_name: string
+          yacht_slug: string
+          guest_name: string | null
+          guest_email: string | null
+          trip_date: string
+          duration_hours: number
+          hourly_rate_usd: number
+          subtotal_usd: number | null
+          status: string
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          invoice_number?: string | null
+          reservation_id?: string | null
+          booking_uid: string
+          yacht_id?: string | null
+          yacht_name: string
+          yacht_slug: string
+          guest_name?: string | null
+          guest_email?: string | null
+          trip_date: string
+          duration_hours: number
+          hourly_rate_usd: number
+          subtotal_usd?: number | null
+          status?: string
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          invoice_number?: string | null
+          reservation_id?: string | null
+          booking_uid?: string
+          yacht_id?: string | null
+          yacht_name?: string
+          yacht_slug?: string
+          guest_name?: string | null
+          guest_email?: string | null
+          trip_date?: string
+          duration_hours?: number
+          hourly_rate_usd?: number
+          subtotal_usd?: number | null
+          status?: string
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservation_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_yacht_id_fkey"
+            columns: ["yacht_id"]
+            isOneToOne: false
+            referencedRelation: "yachts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -480,6 +558,7 @@ export type Database = {
           commission_amount: number | null
           created_at: string
           display_order: number | null
+          hourly_rate: number | null
           id: string
           is_flagship: boolean | null
           name: string
@@ -501,6 +580,7 @@ export type Database = {
           commission_amount?: number | null
           created_at?: string
           display_order?: number | null
+          hourly_rate?: number | null
           id?: string
           is_flagship?: boolean | null
           name: string
@@ -522,6 +602,7 @@ export type Database = {
           commission_amount?: number | null
           created_at?: string
           display_order?: number | null
+          hourly_rate?: number | null
           id?: string
           is_flagship?: boolean | null
           name?: string

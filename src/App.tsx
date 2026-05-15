@@ -21,6 +21,7 @@ import Reserve from "./pages/Reserve";
 import ReserveBook from "./pages/ReserveBook";
 import ReserveInquire from "./pages/ReserveInquire";
 import AgencyOS from "./pages/AgencyOS";
+import Invoices from "./pages/Invoices";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -86,6 +87,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <Deposit />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/invoices"
+                  element={
+                    <ProtectedRoute>
+                      <Invoices />
                     </ProtectedRoute>
                   }
                 />

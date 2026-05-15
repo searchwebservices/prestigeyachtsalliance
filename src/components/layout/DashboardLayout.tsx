@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-import { Anchor, CalendarDays, Calendar as CalendarIcon, LogOut, Users, Menu, Settings as SettingsIcon } from 'lucide-react';
+import { Anchor, CalendarDays, Calendar as CalendarIcon, FileText, LogOut, Users, Menu, Settings as SettingsIcon } from 'lucide-react';
 import { uiText } from '@/lib/uiText';
 import {
   DropdownMenu,
@@ -137,6 +137,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         <Users className="w-4 h-4 mr-3" />
                         {copy.team}
                       </Button>
+                      <Button
+                        variant={location.pathname === '/invoices' ? 'secondary' : 'ghost'}
+                        className="justify-start h-11"
+                        onClick={() => handleNavigation('/invoices')}
+                      >
+                        <FileText className="w-4 h-4 mr-3" />
+                        Invoices
+                      </Button>
                     </>
                   )}
                   <div className="border-t border-border my-4" />
@@ -231,6 +239,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <Users className="w-4 h-4 mr-2" />
                 {copy.team}
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                variant={location.pathname === '/invoices' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => navigate('/invoices')}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Invoices
               </Button>
             )}
             <Button

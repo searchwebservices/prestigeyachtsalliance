@@ -41,6 +41,7 @@ interface Yacht {
   capacity: number;
   team_description: string | null;
   sales_description: string | null;
+  hourly_rate: number | null;
   public_price: number | null;
   commission_amount: number | null;
   owner_notes: string | null;
@@ -213,6 +214,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
       capacity: yacht.capacity,
       team_description: yacht.team_description,
       sales_description: yacht.sales_description,
+      hourly_rate: yacht.hourly_rate,
       public_price: yacht.public_price,
       commission_amount: yacht.commission_amount,
       owner_notes: yacht.owner_notes,
@@ -499,15 +501,59 @@ ${yacht.owner_notes || 'No notes available.'}`;
         {/* Pricing Tab */}
         <TabsContent value="pricing" className="mt-4 md:mt-6">
           <div className="grid gap-4 md:gap-6 md:grid-cols-2">
+
+            {/* Hourly Rate — primary pricing field */}
             <Card className="border-border/50">
               <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <CardTitle className="text-base md:text-lg flex items-center gap-2">
                       <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-success shrink-0" />
-                      Public Sales Price
+                      Hourly Rate
                     </CardTitle>
-                    <CardDescription className="text-xs md:text-sm">Price to quote to clients</CardDescription>
+                    <CardDescription className="text-xs md:text-sm">Price per hour — used to calculate trip totals</CardDescription>
+                  </div>
+                  {!isEditing && yacht.hourly_rate && (
+                    <CopyButton text={`${formatCurrency(yacht.hourly_rate)}/hr`} context="Hourly Rate" size="icon" />
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <Label>Hourly Rate (USD)</Label>
+                    <Input
+                      type="number"
+                      value={editData.hourly_rate ?? ''}
+                      onChange={(e) => setEditData({ ...editData, hourly_rate: parseFloat(e.target.value) || null })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-2xl md:text-3xl font-semibold text-success">
+                      {yacht.hourly_rate ? `${formatCurrency(yacht.hourly_rate)}/hr` : 'Not set'}
+                    </p>
+                    {yacht.hourly_rate && (
+                      <p className="text-base md:text-lg text-muted-foreground mt-1">
+                        {formatMXN(convertToMXN(yacht.hourly_rate, mxnRate))}/hr
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Public Sales Price (legacy / quoted total reference) */}
+            <Card className="border-border/50">
+              <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground shrink-0" />
+                      Quoted Price (legacy)
+                    </CardTitle>
+                    <CardDescription className="text-xs md:text-sm">Optional flat price for client quotes</CardDescription>
                   </div>
                   {!isEditing && yacht.public_price && (
                     <CopyButton text={formatCurrencyWithMXN(yacht.public_price)} context="Price" size="icon" />
@@ -527,7 +573,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
                   </div>
                 ) : (
                   <div>
-                    <p className="text-2xl md:text-3xl font-semibold text-success">
+                    <p className="text-2xl md:text-3xl font-semibold text-foreground">
                       {formatCurrency(yacht.public_price)}
                     </p>
                     {yacht.public_price && (
