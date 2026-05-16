@@ -1,74 +1,55 @@
 ## Goal
 
-Capture every error happening in a user's browser session — React render errors, uncaught JS exceptions, unhandled promise rejections, `console.error` calls, and `toast.error` calls — with rich metadata, stored in our database for review.
+Replace the single hardcoded Stripe deposit link on `/deposit` with a flexible system:
+- **One standard deposit link** (the existing $500 link) used as the global default.
+- **Per-yacht payment links**, where each yacht can define any number of links keyed to a specific duration (in hours).
+- Admins manage all of this from the yacht admin UI; on `/deposit` the user picks yacht + hours and gets the matching link (falling back to the standard $500 deposit when no match exists).
 
-## Approach
+## Data model
 
-In-house tracking (no third-party SDK), built on the same Supabase pattern as `useActivityTracker`. Lightweight, no extra dependencies.
+New table `public.yacht_payment_links`:
+- `id uuid pk`
+- `yacht_id uuid not null` (references `yachts.id`)
+- `duration_hours int not null` (3–8, but not constrained — free-form so future durations work)
+- `label text` (optional, e.g. "4h charter — full payment")
+- `amount_usd numeric` (optional, display-only)
+- `stripe_url text not null`
+- `sort_order int default 0`
+- `created_at`, `updated_at`
+- Unique `(yacht_id, duration_hours)` so each yacht has at most one link per duration.
+- RLS: admins manage; staff + authenticated can read. (No anon — `/deposit` is auth-gated.)
 
-### 1. New table: `client_errors`
+New `app_settings` row (or a tiny `app_settings` key/value table if none exists) holding the **standard deposit link** so admins can rotate it without a code deploy. Key: `standard_deposit_stripe_url`, default seeded to the current `https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01`.
 
-Columns (beyond standard id/created_at):
-- `user_id` (uuid, nullable — anon users on `/reserve*` can hit errors too)
-- `session_id` (text — generated per tab load, stored in `sessionStorage`)
-- `source` (text: `react` | `window_error` | `unhandled_rejection` | `console_error` | `toast_error` | `manual`)
-- `severity` (text: `error` | `warning`)
-- `message` (text)
-- `stack` (text, nullable)
-- `component_stack` (text, nullable — React only)
-- `url` (text — `window.location.href`)
-- `route` (text — pathname)
-- `user_agent` (text)
-- `viewport` (text — e.g. `1246x940`)
-- `referrer` (text, nullable)
-- `release` (text, nullable — git SHA / build id if available, else `dev`)
-- `metadata` (jsonb — free-form: tags, extra context, breadcrumbs)
+## Admin UI
 
-RLS:
-- `INSERT`: allowed for `anon` and `authenticated` (so public pages report too). Inserts always with `auth.uid()` for the `user_id` column when present, NULL otherwise.
-- `SELECT`: admin only (uses existing `has_role(auth.uid(), 'admin')`).
-- No UPDATE / DELETE policies.
+In the existing yacht detail/edit surface (`src/components/yacht/YachtDetail.tsx` + a new `PaymentLinksManager.tsx`):
+- New section "Payment links" listing rows: duration | label | amount | URL | actions (edit / delete).
+- "Add link" form: duration (number, 1–24), label, amount, Stripe URL.
+- Inline edit + delete with confirm.
 
-Index on `(created_at desc)` and `(user_id, created_at desc)` for the admin viewer.
+A small admin-only "Standard deposit link" editor (likely on the existing Team/Settings admin page, or a new `/admin/payments` route — easiest is a card on `TeamManagement` since it's already admin-gated).
 
-### 2. Error reporter module — `src/lib/errorReporter.ts`
+## `/deposit` page rewrite
 
-- `reportError(payload)` — single insert into `client_errors`. Best-effort, swallows its own failures (never throws), de-dupes identical messages within 5s.
-- Generates/reuses `session_id` from `sessionStorage`.
-- Auto-fills `url`, `route`, `user_agent`, `viewport`, `referrer`, `release`.
-- Maintains an in-memory breadcrumb ring buffer (last ~25 events: route changes, clicks, fetches) and attaches to `metadata.breadcrumbs`.
+`src/pages/Deposit.tsx` becomes a selector:
+1. Yacht dropdown (lists all yachts the user can see).
+2. Duration dropdown (shows the durations that yacht has links for, plus a "Standard $500 deposit" option always present).
+3. Summary card shows the chosen link's label + amount + a "Pay now" button that opens the matching `stripe_url`.
+4. If no yacht/duration is selected, default to the standard $500 deposit link (preserves today's behavior for muscle memory).
 
-### 3. Global installer — `src/lib/installErrorTracking.ts`
+## Files touched
 
-Called once from `src/main.tsx`. Wires:
-- `window.addEventListener('error', …)` → `source: 'window_error'`.
-- `window.addEventListener('unhandledrejection', …)` → `source: 'unhandled_rejection'`.
-- Monkey-patches `console.error` (calls original first, then reports) → `source: 'console_error'`. Filters known React Router future-flag warnings to avoid noise.
-- Wraps `sonner`'s `toast.error` and the legacy `useToast` `toast()` calls with `variant: 'destructive'` → `source: 'toast_error'`. Done via a thin re-export module `@/lib/toast.ts` plus a runtime wrapper that the existing imports continue to work against.
+- `supabase/migrations/<ts>_yacht_payment_links.sql` — new table, RLS, optional `app_settings` row.
+- `src/integrations/supabase/types.ts` — regenerated automatically.
+- `src/components/yacht/PaymentLinksManager.tsx` (new) — CRUD UI.
+- `src/components/yacht/YachtDetail.tsx` — mount the manager.
+- `src/pages/Deposit.tsx` — selector + fallback flow.
+- `src/pages/TeamManagement.tsx` (or new admin card) — edit the standard deposit URL.
 
-### 4. React error boundary — `src/components/ErrorBoundary.tsx`
+## Open questions before I build
 
-Class component. `componentDidCatch` → `reportError({ source: 'react', component_stack })`. Renders a minimal fallback with "Reload" button. Wrap `<Routes>` in `App.tsx`.
-
-### 5. Admin viewer — `/admin/errors` (admin-only route)
-
-Table listing latest 200 errors with filters by `source`, `user_id`, `route`. Row expands to show stack, breadcrumbs, full metadata. Built with existing shadcn `Table` + `Dialog`. Linked from `TeamManagement` page header.
-
-### 6. Edge function (optional but recommended) — `client-error-ingest`
-
-For anon callers, a tiny edge function fronts the insert so we can rate-limit by IP (reuses existing `BOOKING_RATE_LIMIT_SALT` pattern). Authed callers can insert directly via RLS. Keeps abuse surface small.
-
-## Technical notes
-
-- No new npm dependencies.
-- Toast wrapping is the only invasive change; existing call sites keep working because we re-export `toast` from `sonner` with the same signature.
-- Console patching is opt-out via `window.__disableErrorTracking__ = true` to make debugging the tracker itself easier.
-- All capture paths route through one `reportError` so de-dup + breadcrumbs are consistent.
-- PII: we store `user_agent` and `referrer` but no form values; metadata is opt-in per call site.
-
-## Open questions for you
-
-1. **Retention** — keep forever, or auto-prune after 30/60/90 days?
-2. **Anon coverage** — should `/reserve*` (public) errors be tracked too, or authed-only?
-3. **Toast wrapping** — OK to add a thin `@/lib/toast.ts` re-export that all new code should import from? (Existing `import { toast } from 'sonner'` still works via runtime patch.)
-4. **Admin viewer scope now** — full filter/search UI, or v1 is just "last 200 errors" and we iterate?
+1. **Standard deposit link location** — keep it editable in the app (recommended, via `app_settings`), or hardcode it like today?
+2. **Where should the standard deposit link editor live?** A card on the Team page, or a new `/admin/settings` route?
+3. **On `/deposit`, when a user picks a yacht + duration that has no matching link**, do you want me to (a) silently fall back to the $500 standard link, or (b) show "No link configured — contact admin"?
+4. **Amount field** — should it be required (so the user always sees the price before paying) or optional?
