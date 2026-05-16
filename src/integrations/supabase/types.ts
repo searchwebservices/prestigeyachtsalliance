@@ -89,6 +89,63 @@ export type Database = {
         }
         Relationships: []
       }
+      client_errors: {
+        Row: {
+          component_stack: string | null
+          created_at: string
+          id: string
+          message: string
+          metadata: Json
+          referrer: string | null
+          release: string | null
+          route: string | null
+          session_id: string | null
+          severity: string
+          source: string
+          stack: string | null
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+          viewport: string | null
+        }
+        Insert: {
+          component_stack?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json
+          referrer?: string | null
+          release?: string | null
+          route?: string | null
+          session_id?: string | null
+          severity?: string
+          source: string
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          viewport?: string | null
+        }
+        Update: {
+          component_stack?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json
+          referrer?: string | null
+          release?: string | null
+          route?: string | null
+          session_id?: string | null
+          severity?: string
+          source?: string
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          viewport?: string | null
+        }
+        Relationships: []
+      }
       exchange_rates: {
         Row: {
           base_currency: string
