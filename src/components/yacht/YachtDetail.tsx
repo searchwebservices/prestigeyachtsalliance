@@ -636,51 +636,15 @@ ${yacht.owner_notes || 'No notes available.'}`;
             </p>
           )}
 
-          {/* Deposit Payment Section */}
-          <Card className="mt-4 md:mt-6 border-border/50">
-            <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
-              <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                <Shield className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-                Charter Deposit
-              </CardTitle>
-              <CardDescription className="text-xs md:text-sm">Secure the reservation with a refundable deposit</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 p-4 md:p-6 pt-0 md:pt-0">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 md:p-4 rounded-lg bg-muted/50">
-                <div>
-                  <p className="text-xl md:text-2xl font-bold text-primary">$500 USD</p>
-                  <p className="text-xs md:text-sm text-muted-foreground">Refundable Deposit</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9"
-                    onClick={() => {
-                      navigator.clipboard.writeText('https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01');
-                      toast({ title: 'Copied!', description: 'Payment link copied to clipboard' });
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-9"
-                    onClick={() => window.open('https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01', '_blank')}
-                  >
-                    Pay Deposit
-                    <ExternalLink className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                Refunds are evaluated on a case-by-case basis. Acts of god (weather, natural disasters, etc.) are always fully refundable.
-              </p>
-            </CardContent>
-          </Card>
+          {/* Payment Links */}
+          <div className="mt-4 md:mt-6">
+            <PaymentLinksManager yachtId={yacht.id} />
+          </div>
         </TabsContent>
 
-        {/* Images Tab */}
+        {/* (Payments merged into Pricing tab) */}
+        <TabsContent value="payments-legacy" className="hidden" />
+
         <TabsContent value="images" className="mt-4 md:mt-6">
           {isAdmin ? (
             <Card className="border-border/50">
