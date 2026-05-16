@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ClipboardCopy,
@@ -438,30 +438,45 @@ export default function ReservationCenterModal({
     setDraftCustomEventName(customEventName);
   }, [customEventName]);
 
+  // Track whether the dialog was open on the previous render so we can detect
+  // a fresh open without re-running the full reset on every reservation update.
+  const openRef = useRef(false);
+
   useEffect(() => {
+    const justOpened = open && !openRef.current;
+    openRef.current = open;
+
     if (!open || !event) return;
 
     const source = reservation ? sanitizeRecord(reservation) : buildDefaultRecord(event, timezone);
     setDraftRecord(source);
-    setMode('view');
-    setPendingAction(null);
-    setInlineError(null);
-    setInlineSuccess(null);
-    setRemoveReason('');
 
-    const start = toTimeZoneParts(source.reservation.startAt || event.startIso, timezone);
-    const requestedHours = getDurationHours(
-      source.reservation.startAt || event.startIso,
-      source.reservation.endAt || event.endIso
-    );
+    if (justOpened) {
+      // Fresh open — reset all modal UI state.
+      setMode('view');
+      setPendingAction(null);
+      setInlineError(null);
+      setInlineSuccess(null);
+      setRemoveReason('');
 
-    setRescheduleDraft(
-      withValidation({
-        date: start.dateKey,
-        requestedHours,
-        startHour: requestedHours ? start.hour : null,
-      })
-    );
+      // Pre-fill the current booking's duration but leave date/time blank.
+      // Starting with no date means the user picks from actually-available days,
+      // avoiding the case where the current booking blocks all slots on its own date.
+      const currentHours = getDurationHours(
+        source.reservation.startAt || event.startIso,
+        source.reservation.endAt || event.endIso
+      );
+      setRescheduleDraft(
+        withValidation({
+          date: null,
+          requestedHours: currentHours,
+          startHour: null,
+        })
+      );
+    }
+    // When reservation updates mid-dialog (e.g. after a data refresh), only the
+    // draft record is updated — mode and rescheduleDraft are left untouched so
+    // an in-progress reschedule is not interrupted.
   }, [event, open, reservation, timezone]);
 
   const selectedDay = useMemo(() => {
