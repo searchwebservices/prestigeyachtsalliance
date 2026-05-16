@@ -642,9 +642,6 @@ ${yacht.owner_notes || 'No notes available.'}`;
           </div>
         </TabsContent>
 
-        {/* (Payments merged into Pricing tab) */}
-        <TabsContent value="payments-legacy" className="hidden" />
-
         <TabsContent value="images" className="mt-4 md:mt-6">
           {isAdmin ? (
             <Card className="border-border/50">
