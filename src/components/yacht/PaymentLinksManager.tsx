@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, ExternalLink, DollarSign } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, DollarSign, X } from 'lucide-react';
 
 interface PaymentLink {
   id: string;
@@ -20,16 +20,19 @@ interface PaymentLink {
 
 interface Props {
   yachtId: string;
+  hourlyRate?: number | null;
 }
 
-const emptyDraft = { duration_hours: 4, label: '', amount_usd: '', stripe_url: '' };
+const makeEmptyDraft = () => ({ duration_hours: 4, label: '', amount_usd: '', stripe_url: '' });
 
-export default function PaymentLinksManager({ yachtId }: Props) {
+export default function PaymentLinksManager({ yachtId, hourlyRate }: Props) {
   const { isAdmin } = useAuth();
   const [links, setLinks] = useState<PaymentLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [draft, setDraft] = useState<typeof emptyDraft>(emptyDraft);
+  const [showForm, setShowForm] = useState(false);
+  const [amountTouched, setAmountTouched] = useState(false);
+  const [draft, setDraft] = useState(makeEmptyDraft());
 
   const load = async () => {
     setLoading(true);
@@ -51,6 +54,26 @@ export default function PaymentLinksManager({ yachtId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yachtId]);
 
+  const computedAmount =
+    hourlyRate && Number(draft.duration_hours) > 0
+      ? Number(draft.duration_hours) * Number(hourlyRate)
+      : null;
+
+  const effectiveAmount =
+    amountTouched || !computedAmount ? draft.amount_usd : String(computedAmount);
+
+  const openForm = () => {
+    setDraft(makeEmptyDraft());
+    setAmountTouched(false);
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setDraft(makeEmptyDraft());
+    setAmountTouched(false);
+  };
+
   const handleAdd = async () => {
     if (!draft.stripe_url.trim()) {
       toast.error('Stripe URL is required');
@@ -61,12 +84,13 @@ export default function PaymentLinksManager({ yachtId }: Props) {
       toast.error('Duration must be between 1 and 24 hours');
       return;
     }
+    const amountStr = effectiveAmount;
     setSaving(true);
     const { error } = await supabase.from('yacht_payment_links').insert({
       yacht_id: yachtId,
       duration_hours: hours,
       label: draft.label.trim() || null,
-      amount_usd: draft.amount_usd ? Number(draft.amount_usd) : null,
+      amount_usd: amountStr ? Number(amountStr) : null,
       stripe_url: draft.stripe_url.trim(),
     });
     setSaving(false);
@@ -78,8 +102,8 @@ export default function PaymentLinksManager({ yachtId }: Props) {
       );
       return;
     }
-    setDraft(emptyDraft);
     toast.success('Payment link added');
+    closeForm();
     load();
   };
 
@@ -109,7 +133,7 @@ export default function PaymentLinksManager({ yachtId }: Props) {
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : links.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No duration-specific links yet.</p>
+          <p className="text-sm text-muted-foreground">No payment links yet.</p>
         ) : (
           <div className="space-y-2">
             {links.map((link) => (
@@ -154,9 +178,21 @@ export default function PaymentLinksManager({ yachtId }: Props) {
           </div>
         )}
 
-        {isAdmin && (
+        {isAdmin && !showForm && (
+          <Button onClick={openForm} size="sm" variant="outline" className="gap-2">
+            <Plus className="w-4 h-4" />
+            Add payment link
+          </Button>
+        )}
+
+        {isAdmin && showForm && (
           <div className="border-t border-border/50 pt-4 space-y-3">
-            <p className="text-sm font-medium">Add a new link</p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">New payment link</p>
+              <Button variant="ghost" size="icon" onClick={closeForm} className="h-7 w-7">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <Label className="text-xs">Hours</Label>
@@ -171,13 +207,23 @@ export default function PaymentLinksManager({ yachtId }: Props) {
                 />
               </div>
               <div>
-                <Label className="text-xs">Amount (USD)</Label>
+                <Label className="text-xs">
+                  Amount (USD)
+                  {hourlyRate ? (
+                    <span className="ml-1 text-muted-foreground font-normal">
+                      · auto from rate
+                    </span>
+                  ) : null}
+                </Label>
                 <Input
                   type="number"
                   min={0}
-                  placeholder="optional"
-                  value={draft.amount_usd}
-                  onChange={(e) => setDraft({ ...draft, amount_usd: e.target.value })}
+                  placeholder={computedAmount ? String(computedAmount) : 'optional'}
+                  value={effectiveAmount}
+                  onChange={(e) => {
+                    setAmountTouched(true);
+                    setDraft({ ...draft, amount_usd: e.target.value });
+                  }}
                 />
               </div>
               <div className="col-span-2">
@@ -197,10 +243,15 @@ export default function PaymentLinksManager({ yachtId }: Props) {
                 />
               </div>
             </div>
-            <Button onClick={handleAdd} disabled={saving} size="sm" className="gap-2">
-              <Plus className="w-4 h-4" />
-              {saving ? 'Adding…' : 'Add link'}
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleAdd} disabled={saving} size="sm" className="gap-2">
+                <Plus className="w-4 h-4" />
+                {saving ? 'Adding…' : 'Add link'}
+              </Button>
+              <Button onClick={closeForm} variant="ghost" size="sm" disabled={saving}>
+                Cancel
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

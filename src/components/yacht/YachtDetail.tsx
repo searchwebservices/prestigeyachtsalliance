@@ -638,7 +638,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
 
           {/* Payment Links */}
           <div className="mt-4 md:mt-6">
-            <PaymentLinksManager yachtId={yacht.id} />
+            <PaymentLinksManager yachtId={yacht.id} hourlyRate={yacht.hourly_rate} />
           </div>
         </TabsContent>
 
