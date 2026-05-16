@@ -28,23 +28,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import InvoiceDetailSheet, { type InvoiceRow } from '@/components/invoices/InvoiceDetailSheet';
 
-type Invoice = {
-  id: string;
-  invoice_number: string | null;
-  booking_uid: string;
-  yacht_name: string;
-  yacht_slug: string;
-  guest_name: string | null;
-  guest_email: string | null;
-  trip_date: string;
-  duration_hours: number;
-  hourly_rate_usd: number;
-  subtotal_usd: number | null;
-  status: string;
-  notes: string | null;
-  created_at: string;
-};
+type Invoice = InvoiceRow;
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground',
@@ -59,6 +45,8 @@ export default function Invoices() {
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(startOfMonth(today));
   const [selectedYacht, setSelectedYacht] = useState<string>('all');
+  const [sheetInvoice, setSheetInvoice] = useState<Invoice | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const monthStart = startOfMonth(selectedMonth);
   const monthEnd = endOfMonth(selectedMonth);
@@ -248,7 +236,11 @@ export default function Invoices() {
                     {filtered.map((invoice) => {
                       const total = invoice.subtotal_usd ?? invoice.duration_hours * invoice.hourly_rate_usd;
                       return (
-                        <TableRow key={invoice.id} className="border-border/50">
+                        <TableRow
+                          key={invoice.id}
+                          className="border-border/50 cursor-pointer hover:bg-muted/40"
+                          onClick={() => { setSheetInvoice(invoice); setSheetOpen(true); }}
+                        >
                           <TableCell className="pl-6 font-mono text-sm font-medium">
                             {invoice.invoice_number ?? '—'}
                           </TableCell>
@@ -282,6 +274,11 @@ export default function Invoices() {
           </CardContent>
         </Card>
       </div>
+      <InvoiceDetailSheet
+        invoice={sheetInvoice}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
     </DashboardLayout>
   );
 }

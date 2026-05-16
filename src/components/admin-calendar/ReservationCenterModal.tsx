@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   ClipboardCopy,
   Download,
-  FileText,
   Plus,
   RefreshCcw,
   ShieldAlert,
@@ -11,9 +10,6 @@ import {
   UserRound,
   Waves,
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -422,10 +418,8 @@ export default function ReservationCenterModal({
   onCustomEventNameChange,
   onOpenChange,
 }: Props) {
-  const { user } = useAuth();
   const [mode, setMode] = useState<ReservationCenterView>('view');
   const [pendingAction, setPendingAction] = useState<'save' | 'reschedule' | 'cancel' | 'export' | null>(null);
-  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const [draftRecord, setDraftRecord] = useState<ReservationRecord | null>(null);
   const [rescheduleDraft, setRescheduleDraft] = useState<RescheduleDraft>({
     date: null,
@@ -761,97 +755,38 @@ export default function ReservationCenterModal({
     setInlineSuccess(copy.detailsSaved);
   };
 
-  const handleGenerateInvoice = async () => {
-    if (!event || !draftRecord) return;
-    setIsGeneratingInvoice(true);
-    try {
-      const start = new Date(event.startIso);
-      const end = new Date(event.endIso);
-      const durationHours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60));
-      const tripDate = event.startIso.slice(0, 10);
-
-      // Fetch hourly_rate from yachts table
-      const { data: yacht, error: yachtErr } = await supabase
-        .from('yachts')
-        .select('hourly_rate, id')
-        .eq('slug', event.yachtSlug)
-        .maybeSingle();
-
-      if (yachtErr) throw yachtErr;
-      if (!yacht?.hourly_rate) {
-        toast.error('Cannot generate invoice', { description: 'This yacht has no hourly rate set. Add one in the yacht pricing tab first.' });
-        return;
-      }
-
-      const { error: insertErr } = await supabase.from('invoices').insert({
-        booking_uid: event.bookingUid ?? `manual-${Date.now()}`,
-        reservation_id: draftRecord.reservation.id ?? undefined,
-        yacht_id: yacht.id,
-        yacht_name: event.yachtName,
-        yacht_slug: event.yachtSlug,
-        guest_name: draftRecord.guest.fullName || event.attendeeName || null,
-        guest_email: draftRecord.guest.email || event.attendeeEmail || null,
-        trip_date: tripDate,
-        duration_hours: durationHours,
-        hourly_rate_usd: yacht.hourly_rate,
-        status: 'draft',
-        created_by: user?.id ?? null,
-      });
-
-      if (insertErr) throw insertErr;
-
-      toast.success('Invoice generated', {
-        description: `Draft invoice created for ${event.yachtName} — ${durationHours}h × $${yacht.hourly_rate}/hr.`,
-      });
-    } catch (err: any) {
-      toast.error('Invoice generation failed', { description: err.message ?? 'Unknown error.' });
-    } finally {
-      setIsGeneratingInvoice(false);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[96vh] w-[calc(100vw-1rem)] max-w-6xl overflow-hidden p-0 sm:max-h-[92vh] sm:w-full">
-        <DialogHeader className="border-b border-border/70 bg-card px-4 py-4 sm:p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <DialogTitle className="text-base leading-snug sm:text-xl">{draftCustomEventName.trim() || event.title || copy.titleFallback}</DialogTitle>
-              <DialogDescription className="text-sm">{copy.subtitle}</DialogDescription>
+        <DialogHeader className="border-b border-border/60 bg-card px-4 py-4 sm:px-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <DialogTitle className="truncate text-base leading-snug sm:text-lg">{draftCustomEventName.trim() || event.title || copy.titleFallback}</DialogTitle>
+              <DialogDescription className="mt-0.5 text-xs">
+                {event.yachtName} · {copy.subtitle}
+              </DialogDescription>
             </div>
-            <Badge variant="secondary" className="uppercase">
+            <Badge variant="secondary" className="shrink-0 text-xs uppercase">
               {record.reservation.status || event.status}
             </Badge>
           </div>
         </DialogHeader>
 
         <ScrollArea className="max-h-[calc(96vh-84px)] sm:max-h-[calc(92vh-88px)]">
-          <div className="space-y-5 px-4 pb-24 pt-4 sm:p-5 sm:pb-12">
-            <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-sky-50 via-card to-emerald-50/40 p-4">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {copy.summarySectionTitle}
-              </p>
-              <div className="grid gap-3 md:grid-cols-4">
-                <div className="rounded-lg border border-border/60 bg-background/80 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{copy.yacht}</p>
-                  <p className="text-sm font-semibold text-foreground">{record.reservation.yachtName || event.yachtName}</p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-background/80 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{copy.when}</p>
-                  <p className="text-sm font-semibold text-foreground">
-                    {start.dateKey} · {formatHour(start.hour, start.minute)} - {formatHour(end.hour, end.minute)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-background/80 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{copy.duration}</p>
-                  <p className="text-sm font-semibold text-foreground">{formatDuration(record.reservation.startAt || event.startIso, record.reservation.endAt || event.endIso)}</p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-background/80 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{copy.bookingUid}</p>
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {record.reservation.bookingUidCurrent || event.bookingUid || '-'}
-                  </p>
-                </div>
+          <div className="space-y-4 px-4 pb-24 pt-4 sm:px-5 sm:pb-12">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
+                <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{copy.when}</p>
+                <p className="text-xs font-medium text-foreground">{start.dateKey}</p>
+                <p className="text-[11px] text-muted-foreground">{formatHour(start.hour, start.minute)}–{formatHour(end.hour, end.minute)}</p>
+              </div>
+              <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
+                <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{copy.duration}</p>
+                <p className="text-xs font-medium text-foreground">{formatDuration(record.reservation.startAt || event.startIso, record.reservation.endAt || event.endIso)}</p>
+              </div>
+              <div className="col-span-2 rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5">
+                <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{copy.bookingUid}</p>
+                <p className="truncate font-mono text-xs text-foreground">{record.reservation.bookingUidCurrent || event.bookingUid || '—'}</p>
               </div>
             </div>
 
@@ -1033,17 +968,12 @@ export default function ReservationCenterModal({
             ) : null}
 
             {mode === 'view' || mode === 'edit' || (mode === 'submitting' && pendingAction === 'save') ? (
-              <div className="space-y-5">
-                <div className="rounded-xl border border-border/70 bg-card p-4">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-foreground">{copy.actionDeckTitle}</p>
-                    <Badge variant="outline">
-                      {copy.completion}: {completionScore}%
-                    </Badge>
-                  </div>
-                  <p className="mb-3 text-sm text-muted-foreground">{copy.actionDeckDescription}</p>
-                  <div className="mb-3 space-y-2">
-                    <Label>{copy.internalEventName}</Label>
+              <div className="space-y-4">
+
+                {/* Name + actions */}
+                <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">{copy.internalEventName}</Label>
                     <Input
                       value={draftCustomEventName}
                       onChange={(e) => {
@@ -1055,157 +985,143 @@ export default function ReservationCenterModal({
                     />
                   </div>
                   {!canEdit ? (
-                    <p className="rounded-md border border-border/60 bg-muted/25 p-2 text-xs text-muted-foreground">
+                    <p className="rounded-md border border-border/60 bg-muted/25 px-3 py-2 text-xs text-muted-foreground">
                       {copy.lockedReadOnly}
                     </p>
                   ) : null}
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="flex flex-wrap gap-2">
                     {canEdit ? (
                       mode === 'edit' ? (
                         <>
-                          <Button type="button" onClick={handleSaveDetails} disabled={isSubmitting}>
+                          <Button type="button" size="sm" onClick={handleSaveDetails} disabled={isSubmitting}>
                             {isSubmitting && pendingAction === 'save' ? copy.savingDetails : copy.saveDetails}
                           </Button>
-                          <Button type="button" variant="outline" onClick={handleResetToView} disabled={isSubmitting}>
+                          <Button type="button" variant="outline" size="sm" onClick={handleResetToView} disabled={isSubmitting}>
                             {copy.cancelEdit}
                           </Button>
                         </>
                       ) : (
-                        <Button type="button" variant="secondary" onClick={() => setMode('edit')}>
+                        <Button type="button" variant="secondary" size="sm" onClick={() => setMode('edit')}>
                           {copy.editDetails}
                         </Button>
                       )
                     ) : null}
-                    <Button type="button" variant="outline" onClick={() => void handleExport('copy')} disabled={pendingAction === 'export'}>
-                      <ClipboardCopy className="mr-2 h-4 w-4" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => void handleExport('copy')} disabled={pendingAction === 'export'}>
+                      <ClipboardCopy className="mr-1.5 h-3.5 w-3.5" />
                       {copy.copyFullDetails}
                     </Button>
-                    <Button type="button" variant="outline" onClick={() => void handleExport('csv')} disabled={pendingAction === 'export'}>
-                      <Download className="mr-2 h-4 w-4" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => void handleExport('csv')} disabled={pendingAction === 'export'}>
+                      <Download className="mr-1.5 h-3.5 w-3.5" />
                       {copy.exportCsv}
                     </Button>
-                    {event.bookingUid ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => void handleGenerateInvoice()}
-                        disabled={isGeneratingInvoice}
-                      >
-                        <FileText className="mr-2 h-4 w-4" />
-                        {isGeneratingInvoice ? 'Generating…' : 'Generate Invoice'}
-                      </Button>
-                    ) : null}
                     {canEdit && event.bookingUid ? (
                       <>
-                        <Button type="button" variant="secondary" onClick={() => setMode('reschedule')}>
-                          <RefreshCcw className="mr-2 h-4 w-4" />
+                        <Button type="button" variant="outline" size="sm" onClick={() => setMode('reschedule')}>
+                          <RefreshCcw className="mr-1.5 h-3.5 w-3.5" />
                           {copy.changeReservation}
                         </Button>
-                        <Button type="button" variant="destructive" onClick={() => setMode('remove_confirm')}>
-                          <Trash2 className="mr-2 h-4 w-4" />
+                        <Button type="button" variant="destructive" size="sm" onClick={() => setMode('remove_confirm')}>
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                           {copy.removeReservation}
                         </Button>
                       </>
                     ) : null}
                   </div>
                   {!event.bookingUid ? (
-                    <p className="mt-3 rounded-md border border-border/60 bg-muted/25 p-2 text-xs text-muted-foreground">
+                    <p className="rounded-md border border-border/60 bg-muted/25 px-3 py-2 text-xs text-muted-foreground">
                       {copy.actionUnavailable}
                     </p>
                   ) : null}
                 </div>
 
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-                    <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <UserRound className="h-4 w-4 text-muted-foreground" />
-                      {copy.guestSectionTitle}
-                    </h3>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>{copy.primaryGuestName}</Label>
-                        <Input value={record.guest.fullName} disabled={readOnly} onChange={(e) => updateGuest('fullName', e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{copy.preferredName}</Label>
-                        <Input value={record.guest.preferredName} disabled={readOnly} onChange={(e) => updateGuest('preferredName', e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{copy.email}</Label>
-                        <Input value={record.guest.email} disabled={readOnly} onChange={(e) => updateGuest('email', e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{copy.phone}</Label>
-                        <Input value={record.guest.phone} disabled={readOnly} onChange={(e) => updateGuest('phone', e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{copy.whatsapp}</Label>
-                        <Input value={record.guest.whatsapp} disabled={readOnly} onChange={(e) => updateGuest('whatsapp', e.target.value)} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{copy.nationality}</Label>
-                        <Input value={record.guest.nationality} disabled={readOnly} onChange={(e) => updateGuest('nationality', e.target.value)} />
-                      </div>
-                      <div className="space-y-2 sm:col-span-2">
-                        <Label>{copy.preferredLanguage}</Label>
-                        <Input value={record.guest.preferredLanguage} disabled={readOnly} onChange={(e) => updateGuest('preferredLanguage', e.target.value)} />
-                      </div>
-                      <div className="space-y-2 sm:col-span-2">
-                        <Label>{copy.guestNotes}</Label>
-                        <Textarea value={record.guest.notes} disabled={readOnly} onChange={(e) => updateGuest('notes', e.target.value)} />
-                      </div>
+                {/* Guest + Party (combined) */}
+                <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <UserRound className="h-4 w-4 text-muted-foreground" />
+                    {copy.guestSectionTitle}
+                  </h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.primaryGuestName}</Label>
+                      <Input value={record.guest.fullName} disabled={readOnly} onChange={(e) => updateGuest('fullName', e.target.value)} />
                     </div>
-                  </section>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.preferredName}</Label>
+                      <Input value={record.guest.preferredName} disabled={readOnly} onChange={(e) => updateGuest('preferredName', e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.email}</Label>
+                      <Input value={record.guest.email} disabled={readOnly} onChange={(e) => updateGuest('email', e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.phone}</Label>
+                      <Input value={record.guest.phone} disabled={readOnly} onChange={(e) => updateGuest('phone', e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.whatsapp}</Label>
+                      <Input value={record.guest.whatsapp} disabled={readOnly} onChange={(e) => updateGuest('whatsapp', e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.nationality}</Label>
+                      <Input value={record.guest.nationality} disabled={readOnly} onChange={(e) => updateGuest('nationality', e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.preferredLanguage}</Label>
+                      <Input value={record.guest.preferredLanguage} disabled={readOnly} onChange={(e) => updateGuest('preferredLanguage', e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.guestNotes}</Label>
+                      <Textarea value={record.guest.notes} disabled={readOnly} onChange={(e) => updateGuest('notes', e.target.value)} />
+                    </div>
+                  </div>
 
-                  <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-                    <h3 className="text-sm font-semibold text-foreground">{copy.partySectionTitle}</h3>
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="space-y-2">
-                        <Label>{copy.guestCount}</Label>
-                        <Input
-                          type="number"
-                          value={record.reservation.guestCount ?? ''}
-                          disabled={readOnly}
-                          onChange={(e) =>
-                            updateReservation('guestCount', e.target.value === '' ? null : Number(e.target.value))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{copy.adultCount}</Label>
-                        <Input
-                          type="number"
-                          value={record.reservation.adultCount ?? ''}
-                          disabled={readOnly}
-                          onChange={(e) =>
-                            updateReservation('adultCount', e.target.value === '' ? null : Number(e.target.value))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{copy.kidsCount}</Label>
-                        <Input
-                          type="number"
-                          value={record.reservation.kidsCount ?? ''}
-                          disabled={readOnly}
-                          onChange={(e) =>
-                            updateReservation('kidsCount', e.target.value === '' ? null : Number(e.target.value))
-                          }
-                        />
-                      </div>
+                  <Separator />
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{copy.partySectionTitle}</h4>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.guestCount}</Label>
+                      <Input
+                        type="number"
+                        value={record.reservation.guestCount ?? ''}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          updateReservation('guestCount', e.target.value === '' ? null : Number(e.target.value))
+                        }
+                      />
                     </div>
-                    <div className="space-y-2">
-                      <Label>{copy.kidsNotes}</Label>
-                      <Textarea
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.adultCount}</Label>
+                      <Input
+                        type="number"
+                        value={record.reservation.adultCount ?? ''}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          updateReservation('adultCount', e.target.value === '' ? null : Number(e.target.value))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.kidsCount}</Label>
+                      <Input
+                        type="number"
+                        value={record.reservation.kidsCount ?? ''}
+                        disabled={readOnly}
+                        onChange={(e) =>
+                          updateReservation('kidsCount', e.target.value === '' ? null : Number(e.target.value))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{copy.kidsNotes}</Label>
+                    <Textarea
                         value={record.reservation.kidsNotes}
                         disabled={readOnly}
                         onChange={(e) => updateReservation('kidsNotes', e.target.value)}
                       />
                     </div>
-                    <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{copy.stayingMultiplePlaces}</p>
-                      </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 p-3">
+                      <p className="text-sm text-foreground">{copy.stayingMultiplePlaces}</p>
                       <Switch
                         checked={record.reservation.stayingMultiplePlaces}
                         disabled={readOnly}
@@ -1213,7 +1129,6 @@ export default function ReservationCenterModal({
                       />
                     </div>
                   </section>
-                </div>
 
                 <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
                   <div className="flex items-center justify-between gap-2">
@@ -1290,94 +1205,83 @@ export default function ReservationCenterModal({
                   )}
                 </section>
 
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-                    <h3 className="text-sm font-semibold text-foreground">{copy.careSectionTitle}</h3>
-                    <div className="space-y-2">
-                      <Label>{copy.allergies}</Label>
+                {/* Notes (Care + Ops merged) */}
+                <section className="space-y-4 rounded-xl border border-border/70 bg-card p-4">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Waves className="h-4 w-4 text-muted-foreground" />
+                    Notes &amp; Preferences
+                  </h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.allergies}</Label>
                       <Input
                         value={parseTags(record.reservation.allergies)}
                         disabled={readOnly}
                         onChange={(e) => updateReservation('allergies', splitTags(e.target.value))}
                       />
-                      <p className="text-xs text-muted-foreground">{copy.commaHint}</p>
+                      <p className="text-[10px] text-muted-foreground">{copy.commaHint}</p>
                     </div>
-                    <div className="space-y-2">
-                      <Label>{copy.preferences}</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.preferences}</Label>
                       <Input
                         value={parseTags(record.reservation.preferences)}
                         disabled={readOnly}
                         onChange={(e) => updateReservation('preferences', splitTags(e.target.value))}
                       />
-                      <p className="text-xs text-muted-foreground">{copy.commaHint}</p>
+                      <p className="text-[10px] text-muted-foreground">{copy.commaHint}</p>
                     </div>
-                    <div className="space-y-2">
-                      <Label>{copy.dietaryNotes}</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.dietaryNotes}</Label>
                       <Textarea
                         value={record.reservation.dietaryNotes}
                         disabled={readOnly}
                         onChange={(e) => updateReservation('dietaryNotes', e.target.value)}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>{copy.mobilityNotes}</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.mobilityNotes}</Label>
                       <Textarea
                         value={record.reservation.mobilityNotes}
                         disabled={readOnly}
                         onChange={(e) => updateReservation('mobilityNotes', e.target.value)}
                       />
                     </div>
-                  </section>
-
-                  <section className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-                    <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <Waves className="h-4 w-4 text-muted-foreground" />
-                      {copy.opsSectionTitle}
-                    </h3>
-                    <div className="space-y-2">
-                      <Label>{copy.occasionNotes}</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.occasionNotes}</Label>
                       <Textarea
                         value={record.reservation.occasionNotes}
                         disabled={readOnly}
                         onChange={(e) => updateReservation('occasionNotes', e.target.value)}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>{copy.conciergeNotes}</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{copy.conciergeNotes}</Label>
                       <Textarea
                         value={record.reservation.conciergeNotes}
                         disabled={readOnly}
                         onChange={(e) => updateReservation('conciergeNotes', e.target.value)}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>{copy.internalNotes}</Label>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label className="text-xs">{copy.internalNotes}</Label>
                       <Textarea
                         value={record.reservation.internalNotes}
                         disabled={readOnly}
                         onChange={(e) => updateReservation('internalNotes', e.target.value)}
                       />
                     </div>
-                    <Separator />
+                  </div>
+                  {record.auditSummary ? (
                     <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
-                      {record.auditSummary ? (
-                        <>
-                          <p>
-                            {copy.status}: {record.reservation.status || event.status}
-                          </p>
-                          <p>
-                            {copy.actionDeckTitle}: {record.auditSummary.lastAction || '-'}
-                          </p>
-                          <p>
-                            {copy.when}: {record.auditSummary.lastActionAt || '-'}
-                          </p>
-                        </>
-                      ) : (
-                        <p>{copy.noAudit}</p>
-                      )}
+                      <p>{copy.status}: {record.reservation.status || event.status}</p>
+                      <p>{copy.actionDeckTitle}: {record.auditSummary.lastAction || '—'}</p>
+                      <p>{copy.when}: {record.auditSummary.lastActionAt || '—'}</p>
                     </div>
-                  </section>
-                </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">{copy.noAudit}</p>
+                  )}
+                </section>
+
               </div>
             ) : null}
           </div>

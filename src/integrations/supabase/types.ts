@@ -242,18 +242,67 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_payments: {
+        Row: {
+          amount_usd: number
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string
+          is_deposit: boolean
+          method: string | null
+          notes: string | null
+          paid_on: string
+          updated_at: string
+        }
+        Insert: {
+          amount_usd: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id: string
+          is_deposit?: boolean
+          method?: string | null
+          notes?: string | null
+          paid_on: string
+          updated_at?: string
+        }
+        Update: {
+          amount_usd?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string
+          is_deposit?: boolean
+          method?: string | null
+          notes?: string | null
+          paid_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           booking_uid: string
           created_at: string | null
           created_by: string | null
           duration_hours: number
+          factura_urls: string[]
           guest_email: string | null
           guest_name: string | null
           hourly_rate_usd: number
           id: string
           invoice_number: string | null
           notes: string | null
+          payment_notes: string | null
           reservation_id: string | null
           status: string
           subtotal_usd: number | null
@@ -268,12 +317,14 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           duration_hours: number
+          factura_urls?: string[]
           guest_email?: string | null
           guest_name?: string | null
           hourly_rate_usd: number
           id?: string
           invoice_number?: string | null
           notes?: string | null
+          payment_notes?: string | null
           reservation_id?: string | null
           status?: string
           subtotal_usd?: number | null
@@ -288,12 +339,14 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           duration_hours?: number
+          factura_urls?: string[]
           guest_email?: string | null
           guest_name?: string | null
           hourly_rate_usd?: number
           id?: string
           invoice_number?: string | null
           notes?: string | null
+          payment_notes?: string | null
           reservation_id?: string | null
           status?: string
           subtotal_usd?: number | null
