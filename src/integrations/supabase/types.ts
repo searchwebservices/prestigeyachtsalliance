@@ -166,64 +166,64 @@ export type Database = {
       }
       invoices: {
         Row: {
+          booking_uid: string
+          created_at: string | null
+          created_by: string | null
+          duration_hours: number
+          guest_email: string | null
+          guest_name: string | null
+          hourly_rate_usd: number
           id: string
           invoice_number: string | null
+          notes: string | null
           reservation_id: string | null
-          booking_uid: string
+          status: string
+          subtotal_usd: number | null
+          trip_date: string
+          updated_at: string | null
           yacht_id: string | null
           yacht_name: string
           yacht_slug: string
-          guest_name: string | null
-          guest_email: string | null
-          trip_date: string
-          duration_hours: number
-          hourly_rate_usd: number
-          subtotal_usd: number | null
-          status: string
-          notes: string | null
-          created_by: string | null
-          created_at: string
-          updated_at: string
         }
         Insert: {
+          booking_uid: string
+          created_at?: string | null
+          created_by?: string | null
+          duration_hours: number
+          guest_email?: string | null
+          guest_name?: string | null
+          hourly_rate_usd: number
           id?: string
           invoice_number?: string | null
+          notes?: string | null
           reservation_id?: string | null
-          booking_uid: string
+          status?: string
+          subtotal_usd?: number | null
+          trip_date: string
+          updated_at?: string | null
           yacht_id?: string | null
           yacht_name: string
           yacht_slug: string
-          guest_name?: string | null
-          guest_email?: string | null
-          trip_date: string
-          duration_hours: number
-          hourly_rate_usd: number
-          subtotal_usd?: number | null
-          status?: string
-          notes?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
         }
         Update: {
+          booking_uid?: string
+          created_at?: string | null
+          created_by?: string | null
+          duration_hours?: number
+          guest_email?: string | null
+          guest_name?: string | null
+          hourly_rate_usd?: number
           id?: string
           invoice_number?: string | null
+          notes?: string | null
           reservation_id?: string | null
-          booking_uid?: string
+          status?: string
+          subtotal_usd?: number | null
+          trip_date?: string
+          updated_at?: string | null
           yacht_id?: string | null
           yacht_name?: string
           yacht_slug?: string
-          guest_name?: string | null
-          guest_email?: string | null
-          trip_date?: string
-          duration_hours?: number
-          hourly_rate_usd?: number
-          subtotal_usd?: number | null
-          status?: string
-          notes?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
         }
         Relationships: [
           {
