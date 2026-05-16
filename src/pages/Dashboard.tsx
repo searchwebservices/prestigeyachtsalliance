@@ -28,6 +28,7 @@ interface Yacht {
   booking_v2_live_from: string | null;
   is_flagship: boolean | null;
   display_order: number | null;
+  hourly_rate: number | null;
 }
 
 interface YachtImage {
