@@ -22,6 +22,7 @@ import ReserveBook from "./pages/ReserveBook";
 import ReserveInquire from "./pages/ReserveInquire";
 import AgencyOS from "./pages/AgencyOS";
 import Invoices from "./pages/Invoices";
+import YachtListing from "./pages/YachtListing";
 import NotFound from "./pages/NotFound";
 import ErrorsAdmin from "./pages/ErrorsAdmin";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -45,6 +46,7 @@ const App = () => (
                 <Route path="/reserve" element={<Reserve />} />
                 <Route path="/reserve/book" element={<ReserveBook />} />
                 <Route path="/reserve/inquire" element={<ReserveInquire />} />
+                <Route path="/y/:slug" element={<YachtListing />} />
                 <Route
                   path="/dashboard"
                   element={

@@ -625,6 +625,53 @@ export type Database = {
           },
         ]
       }
+      yacht_listings: {
+        Row: {
+          id: string
+          yacht_id: string
+          listing_slug: string
+          title: string | null
+          show_description: boolean
+          show_pricing: boolean
+          is_published: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          yacht_id: string
+          listing_slug: string
+          title?: string | null
+          show_description?: boolean
+          show_pricing?: boolean
+          is_published?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          yacht_id?: string
+          listing_slug?: string
+          title?: string | null
+          show_description?: boolean
+          show_pricing?: boolean
+          is_published?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "yacht_listings_yacht_id_fkey"
+            columns: ["yacht_id"]
+            isOneToOne: false
+            referencedRelation: "yachts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       yacht_payment_links: {
         Row: {
           amount_usd: number | null

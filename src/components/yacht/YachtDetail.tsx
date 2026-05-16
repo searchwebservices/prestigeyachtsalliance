@@ -14,6 +14,7 @@ import {
   Users,
   DollarSign,
   FileText,
+  Globe,
   Image as ImageIcon,
   CalendarDays,
   MessageSquare,
@@ -31,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import ImageManager from './ImageManager';
 import YachtMonthCalendar from './YachtMonthCalendar';
+import YachtListingsTab from './YachtListingsTab';
 import { format } from 'date-fns';
 import { useExchangeRate, convertToMXN, formatMXN } from '@/hooks/useExchangeRate';
 
@@ -381,6 +383,10 @@ ${yacht.owner_notes || 'No notes available.'}`;
           <TabsTrigger value="schedule" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
             <CalendarDays className="w-3.5 h-3.5 md:w-4 md:h-4" />
             <span>Schedule</span>
+          </TabsTrigger>
+          <TabsTrigger value="public" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
+            <Globe className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span>Public</span>
           </TabsTrigger>
           <div className="shrink-0 pl-1">
             <Button
@@ -769,6 +775,24 @@ ${yacht.owner_notes || 'No notes available.'}`;
             </CardHeader>
             <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
               <YachtMonthCalendar yachtSlug={yacht.slug} bookable={isInternallyBookable} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Public Listings Tab */}
+        <TabsContent value="public" className="mt-4 md:mt-6">
+          <Card className="border-border/50">
+            <CardHeader className="pb-3 p-4 md:p-6 md:pb-3">
+              <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                <Globe className="w-4 h-4 md:w-5 md:h-5 text-primary shrink-0" />
+                Public Listings
+              </CardTitle>
+              <CardDescription className="text-xs md:text-sm">
+                Shareable branded pages you can send to clients — each with its own URL and content settings.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 md:p-6 pt-0 md:pt-0">
+              <YachtListingsTab yachtId={yacht.id} yachtSlug={yacht.slug} yachtName={yacht.name} />
             </CardContent>
           </Card>
         </TabsContent>
