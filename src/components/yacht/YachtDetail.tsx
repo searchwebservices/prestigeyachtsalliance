@@ -755,11 +755,6 @@ ${yacht.owner_notes || 'No notes available.'}`;
           )}
         </TabsContent>
 
-        {/* Payments Tab */}
-        <TabsContent value="payments" className="mt-4 md:mt-6">
-          <PaymentLinksManager yachtId={yacht.id} />
-        </TabsContent>
-
         {/* Schedule Tab */}
         <TabsContent value="schedule" className="mt-4 md:mt-6">
           <Card className="border-border/50">
