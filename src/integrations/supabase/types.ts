@@ -242,18 +242,61 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_payments: {
+        Row: {
+          amount_usd: number
+          created_at: string | null
+          id: string
+          invoice_id: string
+          is_deposit: boolean
+          notes: string | null
+          payment_date: string
+          payment_method: string | null
+        }
+        Insert: {
+          amount_usd: number
+          created_at?: string | null
+          id?: string
+          invoice_id: string
+          is_deposit?: boolean
+          notes?: string | null
+          payment_date: string
+          payment_method?: string | null
+        }
+        Update: {
+          amount_usd?: number
+          created_at?: string | null
+          id?: string
+          invoice_id?: string
+          is_deposit?: boolean
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           booking_uid: string
           created_at: string | null
           created_by: string | null
           duration_hours: number
+          factura_urls: string[] | null
           guest_email: string | null
           guest_name: string | null
           hourly_rate_usd: number
           id: string
           invoice_number: string | null
           notes: string | null
+          payment_notes: string | null
           reservation_id: string | null
           status: string
           subtotal_usd: number | null
@@ -268,12 +311,14 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           duration_hours: number
+          factura_urls?: string[] | null
           guest_email?: string | null
           guest_name?: string | null
           hourly_rate_usd: number
           id?: string
           invoice_number?: string | null
           notes?: string | null
+          payment_notes?: string | null
           reservation_id?: string | null
           status?: string
           subtotal_usd?: number | null
@@ -288,12 +333,14 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           duration_hours?: number
+          factura_urls?: string[] | null
           guest_email?: string | null
           guest_name?: string | null
           hourly_rate_usd?: number
           id?: string
           invoice_number?: string | null
           notes?: string | null
+          payment_notes?: string | null
           reservation_id?: string | null
           status?: string
           subtotal_usd?: number | null
@@ -627,40 +674,40 @@ export type Database = {
       }
       yacht_listings: {
         Row: {
+          created_at: string | null
+          created_by: string | null
           id: string
-          yacht_id: string
+          is_published: boolean
           listing_slug: string
-          title: string | null
           show_description: boolean
           show_pricing: boolean
-          is_published: boolean
-          created_by: string | null
-          created_at: string
-          updated_at: string
+          title: string | null
+          updated_at: string | null
+          yacht_id: string
         }
         Insert: {
+          created_at?: string | null
+          created_by?: string | null
           id?: string
-          yacht_id: string
+          is_published?: boolean
           listing_slug: string
-          title?: string | null
           show_description?: boolean
           show_pricing?: boolean
-          is_published?: boolean
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
+          title?: string | null
+          updated_at?: string | null
+          yacht_id: string
         }
         Update: {
+          created_at?: string | null
+          created_by?: string | null
           id?: string
-          yacht_id?: string
+          is_published?: boolean
           listing_slug?: string
-          title?: string | null
           show_description?: boolean
           show_pricing?: boolean
-          is_published?: boolean
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
+          title?: string | null
+          updated_at?: string | null
+          yacht_id?: string
         }
         Relationships: [
           {
