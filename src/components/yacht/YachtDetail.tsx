@@ -372,11 +372,7 @@ ${yacht.owner_notes || 'No notes available.'}`;
           </TabsTrigger>
           <TabsTrigger value="pricing" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
             <DollarSign className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            <span>Pricing</span>
-          </TabsTrigger>
-          <TabsTrigger value="payments" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
-            <DollarSign className="w-3.5 h-3.5 md:w-4 md:h-4" />
-            <span>Payments</span>
+            <span>Pricing &amp; Payments</span>
           </TabsTrigger>
           <TabsTrigger value="images" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
             <ImageIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
