@@ -50,7 +50,7 @@ export type InvoiceRow = {
   status: string;
   notes: string | null;
   payment_notes: string | null;
-  factura_urls: string[];
+  factura_urls: string[] | null;
   created_at: string | null;
 };
 
@@ -58,11 +58,11 @@ type Payment = {
   id: string;
   invoice_id: string;
   amount_usd: number;
-  paid_on: string;
-  method: string | null;
+  payment_date: string;
+  payment_method: string | null;
   is_deposit: boolean;
   notes: string | null;
-  created_at: string;
+  created_at: string | null;
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ export default function InvoiceDetailSheet({ invoice, open, onOpenChange }: Prop
     if (!invoice) return;
     setStatus(invoice.status);
     setPaymentNotes(invoice.payment_notes ?? '');
-    setFacturaUrls(invoice.factura_urls ?? []);
+    setFacturaUrls(invoice.factura_urls ?? [] as string[]);
     void fetchPayments(invoice.id);
   }, [invoice?.id]);
 
@@ -123,7 +123,7 @@ export default function InvoiceDetailSheet({ invoice, open, onOpenChange }: Prop
       .from('invoice_payments')
       .select('*')
       .eq('invoice_id', invoiceId)
-      .order('paid_on', { ascending: true });
+      .order('payment_date', { ascending: true });
     setPayments((data as Payment[]) ?? []);
     setLoadingPayments(false);
   };
@@ -191,8 +191,8 @@ export default function InvoiceDetailSheet({ invoice, open, onOpenChange }: Prop
     const { error } = await supabase.from('invoice_payments').insert({
       invoice_id: invoice.id,
       amount_usd: parseFloat(newAmount),
-      paid_on: newDate,
-      method: newMethod || null,
+      payment_date: newDate,
+      payment_method: newMethod || null,
       is_deposit: newIsDeposit,
       notes: newNotes || null,
     });
@@ -323,12 +323,12 @@ export default function InvoiceDetailSheet({ invoice, open, onOpenChange }: Prop
                         {p.is_deposit && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0">Deposit</Badge>
                         )}
-                        {p.method && (
-                          <span className="text-xs text-muted-foreground capitalize">{p.method}</span>
+                        {p.payment_method && (
+                          <span className="text-xs text-muted-foreground capitalize">{p.payment_method}</span>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {format(parseISO(p.paid_on), 'MMM d, yyyy')}
+                        {format(parseISO(p.payment_date), 'MMM d, yyyy')}
                         {p.notes ? ` · ${p.notes}` : ''}
                       </p>
                     </div>
