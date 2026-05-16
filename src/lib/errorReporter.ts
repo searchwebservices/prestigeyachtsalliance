@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 export type ErrorSource =
   | 'react'
@@ -86,7 +87,7 @@ export async function reportError(payload: ReportErrorPayload): Promise<void> {
         breadcrumbs: breadcrumbs.slice(-MAX_BREADCRUMBS),
         device_pixel_ratio: window.devicePixelRatio,
         language: navigator.language,
-      },
+      } as unknown as Json,
     };
 
     await supabase.from('client_errors').insert([row]);

@@ -23,6 +23,8 @@ import ReserveInquire from "./pages/ReserveInquire";
 import AgencyOS from "./pages/AgencyOS";
 import Invoices from "./pages/Invoices";
 import NotFound from "./pages/NotFound";
+import ErrorsAdmin from "./pages/ErrorsAdmin";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +38,7 @@ const App = () => (
             <TooltipProvider>
               <Toaster />
               <Sonner />
+              <ErrorBoundary>
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
@@ -106,8 +109,17 @@ const App = () => (
                     </AgencyRoute>
                   }
                 />
+                <Route
+                  path="/admin/errors"
+                  element={
+                    <ProtectedRoute>
+                      <ErrorsAdmin />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              </ErrorBoundary>
             </TooltipProvider>
           </AuthProvider>
         </LanguageProvider>
