@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserDetailsDialog } from '@/components/team/UserDetailsDialog';
+import StandardDepositLinkEditor from '@/components/team/StandardDepositLinkEditor';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Shield, 
@@ -226,6 +227,8 @@ export default function TeamManagement() {
             </Button>
           </div>
         </div>
+
+        <StandardDepositLinkEditor />
 
         {/* Error State */}
         {error && (

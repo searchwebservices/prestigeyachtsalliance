@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: string | null
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string | null
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string | null
+        }
+        Relationships: []
+      }
       booking_rate_limits: {
         Row: {
           created_at: string
@@ -597,6 +618,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "yacht_images_yacht_id_fkey"
+            columns: ["yacht_id"]
+            isOneToOne: false
+            referencedRelation: "yachts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      yacht_payment_links: {
+        Row: {
+          amount_usd: number | null
+          created_at: string
+          duration_hours: number
+          id: string
+          label: string | null
+          sort_order: number
+          stripe_url: string
+          updated_at: string
+          yacht_id: string
+        }
+        Insert: {
+          amount_usd?: number | null
+          created_at?: string
+          duration_hours: number
+          id?: string
+          label?: string | null
+          sort_order?: number
+          stripe_url: string
+          updated_at?: string
+          yacht_id: string
+        }
+        Update: {
+          amount_usd?: number | null
+          created_at?: string
+          duration_hours?: number
+          id?: string
+          label?: string | null
+          sort_order?: number
+          stripe_url?: string
+          updated_at?: string
+          yacht_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "yacht_payment_links_yacht_id_fkey"
             columns: ["yacht_id"]
             isOneToOne: false
             referencedRelation: "yachts"

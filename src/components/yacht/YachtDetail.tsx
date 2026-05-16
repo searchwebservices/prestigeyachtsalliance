@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PaymentLinksManager from './PaymentLinksManager';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -372,6 +373,10 @@ ${yacht.owner_notes || 'No notes available.'}`;
           <TabsTrigger value="pricing" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
             <DollarSign className="w-3.5 h-3.5 md:w-4 md:h-4" />
             <span>Pricing</span>
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
+            <DollarSign className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span>Payments</span>
           </TabsTrigger>
           <TabsTrigger value="images" className="gap-1.5 md:gap-2 text-xs md:text-sm shrink-0">
             <ImageIcon className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -791,6 +796,11 @@ ${yacht.owner_notes || 'No notes available.'}`;
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* Payments Tab */}
+        <TabsContent value="payments" className="mt-4 md:mt-6">
+          <PaymentLinksManager yachtId={yacht.id} />
         </TabsContent>
 
         {/* Schedule Tab */}
