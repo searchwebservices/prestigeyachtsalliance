@@ -13,9 +13,6 @@ import {
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ExternalLink, Shield, RefreshCw } from "lucide-react";
 
-const FALLBACK_STANDARD_URL = "https://buy.stripe.com/7sY3cu0AL1eZ70Lg9Df3a01";
-const STANDARD_KEY = "__standard__";
-
 interface Yacht {
   id: string;
   name: string;
@@ -33,24 +30,17 @@ interface PaymentLink {
 export default function Deposit() {
   const [yachts, setYachts] = useState<Yacht[]>([]);
   const [links, setLinks] = useState<PaymentLink[]>([]);
-  const [standardUrl, setStandardUrl] = useState<string>(FALLBACK_STANDARD_URL);
   const [yachtId, setYachtId] = useState<string>("");
-  const [selection, setSelection] = useState<string>(STANDARD_KEY);
+  const [selection, setSelection] = useState<string>("");
 
   useEffect(() => {
     (async () => {
-      const [{ data: y }, { data: l }, { data: s }] = await Promise.all([
+      const [{ data: y }, { data: l }] = await Promise.all([
         supabase.from("yachts").select("id,name").order("name"),
         supabase.from("yacht_payment_links").select("*").order("duration_hours"),
-        supabase
-          .from("app_settings")
-          .select("value")
-          .eq("key", "standard_deposit_stripe_url")
-          .maybeSingle(),
       ]);
       setYachts((y ?? []) as Yacht[]);
       setLinks((l ?? []) as PaymentLink[]);
-      if (s?.value) setStandardUrl(s.value);
     })();
   }, []);
 
@@ -59,29 +49,19 @@ export default function Deposit() {
     [yachtId, links]
   );
 
-  // Reset selection when changing yacht
   useEffect(() => {
-    setSelection(STANDARD_KEY);
+    setSelection("");
   }, [yachtId]);
 
-  const active =
-    selection === STANDARD_KEY
-      ? {
-          url: standardUrl,
-          label: "Refundable Deposit",
-          amount: 500,
-          isStandard: true,
-        }
-      : (() => {
-          const link = yachtLinks.find((l) => l.id === selection);
-          if (!link) return null;
-          return {
-            url: link.stripe_url,
-            label: link.label || `${link.duration_hours}h Charter Payment`,
-            amount: link.amount_usd != null ? Number(link.amount_usd) : null,
-            isStandard: false,
-          };
-        })();
+  const active = (() => {
+    const link = yachtLinks.find((l) => l.id === selection);
+    if (!link) return null;
+    return {
+      url: link.stripe_url,
+      label: link.label || `${link.duration_hours}h Charter Payment`,
+      amount: link.amount_usd != null ? Number(link.amount_usd) : null,
+    };
+  })();
 
   const handlePay = () => {
     if (active?.url) window.open(active.url, "_blank");
@@ -103,7 +83,7 @@ export default function Deposit() {
                 <Label>Yacht</Label>
                 <Select value={yachtId} onValueChange={setYachtId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Any yacht (standard deposit)" />
+                    <SelectValue placeholder="Select a yacht" />
                   </SelectTrigger>
                   <SelectContent>
                     {yachts.map((y) => (
@@ -115,15 +95,24 @@ export default function Deposit() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Payment option</Label>
-                <Select value={selection} onValueChange={setSelection}>
+                <Label>Duration</Label>
+                <Select
+                  value={selection}
+                  onValueChange={setSelection}
+                  disabled={!yachtId || yachtLinks.length === 0}
+                >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue
+                      placeholder={
+                        !yachtId
+                          ? "Select a yacht first"
+                          : yachtLinks.length === 0
+                          ? "No payment links"
+                          : "Select duration"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={STANDARD_KEY}>
-                      Standard $500 USD deposit
-                    </SelectItem>
                     {yachtLinks.map((l) => (
                       <SelectItem key={l.id} value={l.id}>
                         {l.duration_hours}h
@@ -137,6 +126,13 @@ export default function Deposit() {
                 </Select>
               </div>
             </div>
+
+            {yachtId && yachtLinks.length === 0 && (
+              <div className="p-4 rounded-lg bg-muted/50 text-sm text-muted-foreground text-center">
+                No payment links are configured for this yacht yet. Please contact an admin
+                to set them up under the yacht's Pricing &amp; Payments tab.
+              </div>
+            )}
 
             {active && (
               <div className="text-center pt-2">
