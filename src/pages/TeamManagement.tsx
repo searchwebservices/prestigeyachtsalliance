@@ -228,6 +228,8 @@ export default function TeamManagement() {
           </div>
         </div>
 
+        <StandardDepositLinkEditor />
+
         {/* Error State */}
         {error && (
           <Alert variant="destructive">
