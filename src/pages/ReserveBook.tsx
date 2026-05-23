@@ -195,12 +195,14 @@ function DateField({
   value,
   onSelect,
   disabledMatcher,
+  defaultMonth,
 }: {
   id: string;
   label: string;
   value: Date | undefined;
   onSelect: (date: Date | undefined) => void;
   disabledMatcher: (date: Date) => boolean;
+  defaultMonth?: Date;
 }) {
   return (
     <div className="space-y-1.5">
@@ -227,6 +229,7 @@ function DateField({
             selected={value}
             onSelect={onSelect}
             disabled={disabledMatcher}
+            defaultMonth={defaultMonth ?? value}
             initialFocus
           />
         </PopoverContent>
@@ -416,6 +419,7 @@ export default function ReserveBook() {
                     disabledMatcher={(date) =>
                       date < today || (!!preferredDate && sameDay(date, preferredDate))
                     }
+                    defaultMonth={preferredDate}
                   />
                 </div>
                 {selectedExperience && (
