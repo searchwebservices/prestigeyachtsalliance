@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   ArrowLeft,
@@ -22,16 +22,11 @@ import { useToast } from '@/hooks/use-toast';
 import { submitToNetlifyForm } from '@/lib/netlifyForms';
 import { cn } from '@/lib/utils';
 
-import sportFishingImg from '@/assets/experiences/sport-fishing.png';
-import snorkelingImg from '@/assets/experiences/snorkeling.png';
-import sunsetCruiseImg from '@/assets/experiences/sunset-cruise.png';
-import privateCelebrationImg from '@/assets/experiences/private-celebration.png';
-
 type ExperienceId =
-  | 'sport-fishing'
-  | 'snorkeling'
-  | 'sunset-cruise'
-  | 'private-celebration';
+  | 'made-for-waves'
+  | 'tu-enamorado'
+  | 'dawn-patrol'
+  | 'bad-romance';
 
 type Experience = {
   id: ExperienceId;
@@ -44,40 +39,44 @@ type Experience = {
 
 const EXPERIENCES: Experience[] = [
   {
-    id: 'sport-fishing',
-    title: 'Sport Fishing',
+    id: 'made-for-waves',
+    title: 'Made for Waves',
     description:
-      "Tournament-grade equipment meets expert local knowledge. Whether you're after marlin, dorado, or tuna, our crew knows exactly where they're biting.",
-    feature: 'Full Day Charters · Cleaning Included',
-    socialProof: 'Trusted by 300+ anglers',
-    imageSrc: sportFishingImg,
+      'Our flagship 48ft power catamaran — wide, fast, and built for groups who want space without sacrificing speed. Two hulls of stability for the Sea of Cortez at full tilt.',
+    feature: '48ft Power Catamaran · Up to 16 guests',
+    socialProof: 'From $2,650 USD per charter',
+    imageSrc:
+      'https://uykzfpzawuyaroksyjsc.supabase.co/storage/v1/object/public/yacht-images/caa603fb-3eb4-409a-99eb-c41763c8f431/1764872659158.jpg',
   },
   {
-    id: 'snorkeling',
-    title: 'Snorkeling Adventures',
+    id: 'tu-enamorado',
+    title: 'Tu Enamorado',
     description:
-      'Dive into crystal-clear waters teeming with tropical fish, sea turtles, and vibrant coral. All equipment provided, all skill levels welcome.',
-    feature: 'Half or Full Day · All Gear Included',
-    socialProof: 'Trusted by 600+ explorers',
-    imageSrc: snorkelingImg,
+      'A one-of-a-kind 100ft wooden schooner — classic, cinematic, and unlike anything else in Cabo. Built for guests who want presence on the water: weddings, sunset cruises, corporate incentives, statement celebrations.',
+    feature: '100ft Classic Wooden Schooner · Up to 35 guests',
+    socialProof: 'Inquire for pricing',
+    imageSrc:
+      'https://uykzfpzawuyaroksyjsc.supabase.co/storage/v1/object/public/yacht-images/e118183e-2e9d-4a7d-a322-8308aa6ac8d6/1778910496568-19.jpg',
   },
   {
-    id: 'sunset-cruise',
-    title: 'Sunset Cruises',
+    id: 'dawn-patrol',
+    title: 'Dawn Patrol',
     description:
-      "Golden hour magic on the Sea of Cortez. Toast champagne as the sun melts into the Pacific, painting the Arch in colors you'll never forget.",
-    feature: 'Duration: 4 Hours · Premium Dinner Available',
-    socialProof: 'Trusted by 500+ couples',
-    imageSrc: sunsetCruiseImg,
+      '65ft Sea Ray SuperSun Sport — two staterooms, full water toy kit (paddle board, floating mat, snorkel gear), open bar, and a chef on board serving fresh ceviche and seasonal fruit. The full-service day on the water.',
+    feature: '65ft Sea Ray SuperSun Sport · Up to 24 guests',
+    socialProof: 'From $600 USD per charter',
+    imageSrc:
+      'https://uykzfpzawuyaroksyjsc.supabase.co/storage/v1/object/public/yacht-images/b3dd45cd-642f-4a69-a803-b78e62a2b35e/1778893540148-11.jpeg',
   },
   {
-    id: 'private-celebration',
-    title: 'Private Celebrations',
+    id: 'bad-romance',
+    title: 'Bad Romance',
     description:
-      'Bachelor parties, birthdays, anniversaries — your celebration deserves the perfect setting. Dance on deck, jump off the back, make memories on your private floating paradise.',
-    feature: 'Custom Packages · Open Bar Included',
-    socialProof: 'Trusted by 400+ celebrations',
-    imageSrc: privateCelebrationImg,
+      'A beautifully maintained Sea Ray Sundancer built for couples, small families, and groups who want the feel of a private Cabo charter without the super-yacht price tag. Intimate, stylish, easy.',
+    feature: 'Sea Ray Sundancer · Up to 8 guests · 3hr minimum',
+    socialProof: 'From $390 USD per charter',
+    imageSrc:
+      'https://uykzfpzawuyaroksyjsc.supabase.co/storage/v1/object/public/yacht-images/ea535126-2124-4844-a318-432d68e6f039/1778905315095-5.jpeg',
   },
 ];
 
@@ -231,8 +230,17 @@ function DateField({
 
 export default function ReserveBook() {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<Step>(1);
   const [experienceId, setExperienceId] = useState<ExperienceId | null>(null);
+
+  useEffect(() => {
+    const yachtParam = searchParams.get('yacht') as ExperienceId | null;
+    if (yachtParam && EXPERIENCES.some((e) => e.id === yachtParam)) {
+      setExperienceId(yachtParam);
+      setStep(2);
+    }
+  }, []);
   const [preferredDate, setPreferredDate] = useState<Date | undefined>(undefined);
   const [backupDate, setBackupDate] = useState<Date | undefined>(undefined);
   const [name, setName] = useState('');
