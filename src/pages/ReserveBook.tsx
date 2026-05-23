@@ -267,7 +267,7 @@ export default function ReserveBook() {
   const [email, setEmail] = useState('');
   const [guests, setGuests] = useState('');
   const [notes, setNotes] = useState('');
-  const [country, setCountry] = useState<CountryCode>('US');
+  const [country, setCountry] = useState<CountryCode | null>('US');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -309,7 +309,7 @@ export default function ReserveBook() {
         preferred_date: format(preferredDate, 'yyyy-MM-dd'),
         backup_date: format(backupDate, 'yyyy-MM-dd'),
         name: name.trim(),
-        phone: `${COUNTRIES.find(c => c.code === country)!.dial} ${phone.trim()}`,
+        phone: country ? `${COUNTRIES.find(c => c.code === country)!.dial} ${phone.trim()}` : phone.trim(),
         email: email.trim(),
         guests: guests.trim(),
         notes: notes.trim(),
@@ -445,7 +445,7 @@ export default function ReserveBook() {
                         <button
                           key={c.code}
                           type="button"
-                          onClick={() => setCountry(c.code)}
+                          onClick={() => setCountry(country === c.code ? null : c.code)}
                           className={cn(
                             'flex items-center gap-1.5 rounded-lg border px-2 py-1.5 leading-none transition duration-150',
                             country === c.code
@@ -459,18 +459,20 @@ export default function ReserveBook() {
                       ))}
                     </div>
                     <div className="relative flex-1 min-w-0">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40 select-none">
-                        {COUNTRIES.find(c => c.code === country)!.dial}
-                      </span>
+                      {country && (
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40 select-none">
+                          {COUNTRIES.find(c => c.code === country)!.dial}
+                        </span>
+                      )}
                       <Input
                         id="lead-phone"
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        placeholder={COUNTRIES.find(c => c.code === country)!.placeholder}
+                        placeholder={country ? COUNTRIES.find(c => c.code === country)!.placeholder : '+__ ___ ____'}
                         autoComplete="tel"
                         required
-                        className={cn(inputDark, 'pl-12 h-full min-h-[40px]')}
+                        className={cn(inputDark, country ? 'pl-12' : '', 'h-full min-h-[40px]')}
                       />
                     </div>
                   </div>

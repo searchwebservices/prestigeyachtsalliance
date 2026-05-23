@@ -38,7 +38,7 @@ export default function ReserveInquire() {
   const [email, setEmail] = useState('');
   const [vibe, setVibe] = useState<Vibe | ''>('');
   const [notes, setNotes] = useState('');
-  const [country, setCountry] = useState<CountryCode>('US');
+  const [country, setCountry] = useState<CountryCode | null>('US');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -61,7 +61,7 @@ export default function ReserveInquire() {
       await submitToNetlifyForm('inquiry', {
         name: name.trim(),
         email: email.trim(),
-        phone: `${COUNTRIES.find(c => c.code === country)!.dial} ${phone.trim()}`,
+        phone: country ? `${COUNTRIES.find(c => c.code === country)!.dial} ${phone.trim()}` : phone.trim(),
         vibe,
         notes: notes.trim(),
       });
@@ -156,7 +156,7 @@ export default function ReserveInquire() {
                         <button
                           key={c.code}
                           type="button"
-                          onClick={() => setCountry(c.code)}
+                          onClick={() => setCountry(country === c.code ? null : c.code)}
                           className={cn(
                             'flex items-center gap-1.5 rounded-lg border px-2 py-1.5 leading-none transition duration-150',
                             country === c.code
@@ -170,17 +170,19 @@ export default function ReserveInquire() {
                       ))}
                     </div>
                     <div className="relative flex-1 min-w-0">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40 select-none">
-                        {COUNTRIES.find(c => c.code === country)!.dial}
-                      </span>
+                      {country && (
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40 select-none">
+                          {COUNTRIES.find(c => c.code === country)!.dial}
+                        </span>
+                      )}
                       <Input
                         id="inq-phone"
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        placeholder={COUNTRIES.find(c => c.code === country)!.placeholder}
+                        placeholder={country ? COUNTRIES.find(c => c.code === country)!.placeholder : '+__ ___ ____'}
                         autoComplete="tel"
-                        className={cn(inputDark, 'pl-12 h-full min-h-[40px]')}
+                        className={cn(inputDark, country ? 'pl-12' : '', 'h-full min-h-[40px]')}
                       />
                     </div>
                   </div>
