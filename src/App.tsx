@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import UserPreferenceSync from "@/components/preferences/UserPreferenceSync";
+import ScrollToTop from "@/components/ScrollToTop";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AgencyRoute from "@/components/AgencyRoute";
 import Index from "./pages/Index";
@@ -40,6 +41,7 @@ const App = () => (
               <Toaster />
               <Sonner />
               <ErrorBoundary>
+              <ScrollToTop />
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />

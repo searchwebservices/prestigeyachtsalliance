@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import {
   ArrowLeft,
@@ -279,8 +279,22 @@ export default function ReserveBook() {
   const canContinue = (step === 1 && !!experienceId) || (step === 2 && datesValid);
   const canSubmit = !!name.trim() && !!phone.trim() && !submitting;
 
-  const goNext = () => { if (canContinue) setStep((s) => Math.min(STEP_TOTAL, s + 1) as Step); };
-  const goBack = () => { setStep((s) => Math.max(1, s - 1) as Step); };
+  const navigate = useNavigate();
+
+  const goNext = () => {
+    if (!canContinue) return;
+    setStep((s) => Math.min(STEP_TOTAL, s + 1) as Step);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
+  const goBack = () => {
+    if (step === 1) {
+      navigate('/reserve');
+    } else {
+      setStep((s) => (s - 1) as Step);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -343,14 +357,7 @@ export default function ReserveBook() {
           <div className="w-full max-w-4xl rounded-3xl border border-white/20 bg-black/55 p-6 text-white shadow-2xl backdrop-blur-2xl md:p-8">
 
             {/* header row */}
-            <div className="flex items-center justify-between">
-              <Link
-                to="/reserve"
-                className="inline-flex items-center gap-1.5 text-xs text-white/50 transition hover:text-white/90"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back
-              </Link>
+            <div className="flex items-center justify-end">
               <StepIndicator step={step} />
             </div>
 
@@ -496,8 +503,7 @@ export default function ReserveBook() {
                 type="button"
                 variant="ghost"
                 onClick={goBack}
-                disabled={step === 1}
-                className="text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-0"
+                className="text-white/50 hover:text-white hover:bg-white/10"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
