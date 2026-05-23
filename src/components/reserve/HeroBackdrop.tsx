@@ -6,13 +6,14 @@ type Props = {
   children: ReactNode;
   className?: string;
   overlayClassName?: string;
+  bgSrc?: string;
 };
 
-export default function HeroBackdrop({ children, className, overlayClassName }: Props) {
+export default function HeroBackdrop({ children, className, overlayClassName, bgSrc }: Props) {
   return (
     <div className={cn('relative min-h-screen w-full overflow-hidden bg-slate-950', className)}>
       <img
-        src={yachtHero}
+        src={bgSrc ?? yachtHero}
         alt=""
         aria-hidden
         className="absolute inset-0 h-full w-full object-cover"
