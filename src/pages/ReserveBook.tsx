@@ -35,6 +35,7 @@ type Experience = {
   feature: string;
   socialProof: string;
   imageSrc: string;
+  imageClassName?: string;
 };
 
 const EXPERIENCES: Experience[] = [
@@ -57,6 +58,7 @@ const EXPERIENCES: Experience[] = [
     socialProof: 'Inquire for pricing',
     imageSrc:
       'https://uykzfpzawuyaroksyjsc.supabase.co/storage/v1/object/public/yacht-images/e118183e-2e9d-4a7d-a322-8308aa6ac8d6/1778910496568-19.jpg',
+    imageClassName: 'scale-[1.43] origin-[center_65%] group-hover:scale-[1.47]',
   },
   {
     id: 'dawn-patrol',
@@ -148,7 +150,10 @@ function ExperienceCard({
         <img
           src={experience.imageSrc}
           alt=""
-          className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
+          className={cn(
+            'h-full w-full object-cover object-center transition-transform duration-500',
+            experience.imageClassName ?? 'group-hover:scale-[1.03]'
+          )}
         />
         {selected && (
           <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-gold text-foreground shadow-lg md:h-7 md:w-7">
