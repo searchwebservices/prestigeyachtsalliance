@@ -36,6 +36,7 @@ type Experience = {
   socialProof: string;
   imageSrc: string;
   imageClassName?: string;
+  imageHoverClassName?: string;
 };
 
 const EXPERIENCES: Experience[] = [
@@ -58,7 +59,8 @@ const EXPERIENCES: Experience[] = [
     socialProof: 'Inquire for pricing',
     imageSrc:
       'https://uykzfpzawuyaroksyjsc.supabase.co/storage/v1/object/public/yacht-images/e118183e-2e9d-4a7d-a322-8308aa6ac8d6/1778910496568-19.jpg',
-    imageClassName: 'scale-[1.43] origin-[center_65%] group-hover:scale-[1.47]',
+    imageClassName: 'scale-[1.43] origin-[center_65%]',
+    imageHoverClassName: 'md:group-hover:scale-[1.47]',
   },
   {
     id: 'dawn-patrol',
@@ -152,7 +154,9 @@ function ExperienceCard({
           alt=""
           className={cn(
             'h-full w-full object-cover object-center transition-transform duration-500',
-            experience.imageClassName ?? 'group-hover:scale-[1.03]'
+            experience.imageClassName,
+            experience.imageHoverClassName ?? 'md:group-hover:scale-[1.1]',
+            !experience.imageClassName && selected && 'max-md:scale-[1.07]'
           )}
         />
         {selected && (
