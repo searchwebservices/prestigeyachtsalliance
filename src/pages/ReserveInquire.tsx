@@ -2,38 +2,41 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import HeroBackdrop from '@/components/reserve/HeroBackdrop';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { submitToNetlifyForm } from '@/lib/netlifyForms';
+import { cn } from '@/lib/utils';
 
-type Experience = 'fishing' | 'snorkel' | 'sunset' | 'celebration' | '';
+const BG =
+  'https://uykzfpzawuyaroksyjsc.supabase.co/storage/v1/object/public/yacht-images/65bcc876-2023-4b04-be2c-4d80958999e3/1778898862256-0.jpg';
 
-const EXPERIENCE_OPTIONS: { value: Experience; label: string }[] = [
-  { value: 'fishing', label: 'Fishing' },
-  { value: 'snorkel', label: 'Snorkel' },
-  { value: 'sunset', label: 'Sunset' },
-  { value: 'celebration', label: 'Special celebration' },
+type Vibe = 'small' | 'group' | 'celebration' | 'open';
+
+const VIBES: { value: Vibe; label: string; sub: string }[] = [
+  { value: 'small',       label: 'Intimate',    sub: '1–8 guests' },
+  { value: 'group',       label: 'Group',       sub: '9–24 guests' },
+  { value: 'celebration', label: 'Event',       sub: 'Wedding / corporate' },
+  { value: 'open',        label: 'Not sure',    sub: 'Tell us more below' },
 ];
+
+const inputDark =
+  'bg-white/10 border-white/20 text-white placeholder:text-white/35 focus-visible:border-white/50 focus-visible:ring-white/20';
 
 export default function ReserveInquire() {
   const { toast } = useToast();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [guests, setGuests] = useState('');
-  const [experience, setExperience] = useState<Experience>('');
+  const [email, setEmail] = useState('');
+  const [vibe, setVibe] = useState<Vibe | ''>('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!name.trim()) {
       toast({ variant: 'destructive', title: 'Please enter your name.' });
       return;
@@ -42,19 +45,17 @@ export default function ReserveInquire() {
       toast({
         variant: 'destructive',
         title: 'How should we reach you?',
-        description: 'Add an email or phone number so we can follow up.',
+        description: 'Add an email or phone number.',
       });
       return;
     }
-
     setSubmitting(true);
     try {
       await submitToNetlifyForm('inquiry', {
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim(),
-        guests: guests.trim(),
-        experience,
+        vibe,
         notes: notes.trim(),
       });
       setSubmitted(true);
@@ -63,7 +64,7 @@ export default function ReserveInquire() {
       toast({
         variant: 'destructive',
         title: 'Something went wrong',
-        description: 'Please try again, or call us directly.',
+        description: 'Please try again or call us directly.',
       });
     } finally {
       setSubmitting(false);
@@ -71,140 +72,110 @@ export default function ReserveInquire() {
   };
 
   return (
-    <HeroBackdrop>
-      <div className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-10 md:px-6 md:py-14">
-        <Link
-          to="/reserve"
-          className="inline-flex items-center gap-2 self-start text-sm text-white/80 transition hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Link>
+    <HeroBackdrop bgSrc={BG} overlayClassName="bg-black/45">
+      <div className="flex min-h-screen items-start justify-center px-4 py-8 md:items-center">
+        <div className="w-full max-w-md rounded-3xl border border-white/20 bg-black/55 p-8 text-white shadow-2xl backdrop-blur-2xl">
 
-        <Card className="mt-6 border-white/30 bg-card/95 shadow-2xl backdrop-blur-xl">
           {submitted ? (
-            <CardContent className="space-y-4 p-8 text-center md:p-10">
-              <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
-              <h1 className="text-2xl font-semibold md:text-3xl">Thanks — we'll be in touch.</h1>
-              <p className="text-sm text-muted-foreground md:text-base">
-                A member of the Prestige Yachts team will reach out with options tailored to your day on
-                the water.
+            <div className="space-y-4 text-center py-4">
+              <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-400" />
+              <h1 className="text-2xl font-semibold">We'll be in touch.</h1>
+              <p className="text-sm text-white/55">
+                The Prestige team will reach out with options tailored to your trip.
               </p>
-              <Button asChild variant="outline" className="mt-2">
+              <Button asChild variant="outline" className="mt-2 border-white/20 text-white hover:bg-white/10 hover:text-white">
                 <Link to="/reserve">Back to start</Link>
               </Button>
-            </CardContent>
+            </div>
           ) : (
             <>
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-2xl md:text-3xl">Tell us about your trip</CardTitle>
-                <p className="text-sm text-muted-foreground md:text-base">
-                  We'll respond with curated options that match the day you have in mind.
+              <Link
+                to="/reserve"
+                className="inline-flex items-center gap-1.5 text-xs text-white/50 transition hover:text-white/90"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back
+              </Link>
+
+              <div className="mt-5 mb-6">
+                <p className="text-[10px] font-medium uppercase tracking-[0.35em] text-white/40">
+                  Prestige Yachts Alliance · Cabo
                 </p>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                  <div className="space-y-2">
-                    <Label htmlFor="inq-name">Your name</Label>
-                    <Input
-                      id="inq-name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      autoComplete="name"
-                      required
-                    />
-                  </div>
+                <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+                  Ask a question.
+                </h1>
+                <p className="mt-1 text-sm text-white/50">
+                  Tell us a bit — we'll suggest the right charter.
+                </p>
+              </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="inq-email">Email</Label>
-                      <Input
-                        id="inq-email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@example.com"
-                        autoComplete="email"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="inq-phone">Phone</Label>
-                      <Input
-                        id="inq-phone"
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+1..."
-                        autoComplete="tel"
-                      />
-                    </div>
-                  </div>
-                  <p className="-mt-3 text-xs text-muted-foreground">Email or phone — either is fine.</p>
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="inq-guests">
-                      Guests <span className="text-muted-foreground">(optional)</span>
-                    </Label>
-                    <Input
-                      id="inq-guests"
-                      type="number"
-                      min={1}
-                      value={guests}
-                      onChange={(e) => setGuests(e.target.value)}
-                      placeholder="How many people?"
-                    />
+                {/* vibe picker */}
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-white/60">
+                    Party size <span className="normal-case text-white/35">(optional)</span>
+                  </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {VIBES.map((v) => (
+                      <button
+                        key={v.value}
+                        type="button"
+                        onClick={() => setVibe(vibe === v.value ? '' : v.value)}
+                        className={cn(
+                          'rounded-xl border px-3 py-2.5 text-left text-sm transition duration-150',
+                          vibe === v.value
+                            ? 'border-white/50 bg-white/20 text-white'
+                            : 'border-white/15 bg-white/5 text-white/65 hover:border-white/30 hover:bg-white/10 hover:text-white'
+                        )}
+                      >
+                        <p className="font-medium leading-none">{v.label}</p>
+                        <p className="mt-0.5 text-[10px] text-white/45">{v.sub}</p>
+                      </button>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="space-y-3">
-                    <Label>
-                      Experience <span className="text-muted-foreground">(optional)</span>
-                    </Label>
-                    <RadioGroup
-                      value={experience}
-                      onValueChange={(v) => setExperience(v as Experience)}
-                      className="grid grid-cols-2 gap-2"
-                    >
-                      {EXPERIENCE_OPTIONS.map((opt) => (
-                        <Label
-                          key={opt.value}
-                          htmlFor={`exp-${opt.value}`}
-                          className="flex cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm transition hover:border-primary/60 hover:bg-accent/40"
-                        >
-                          <RadioGroupItem id={`exp-${opt.value}`} value={opt.value} />
-                          <span>{opt.label}</span>
-                        </Label>
-                      ))}
-                    </RadioGroup>
+                <div className="space-y-1.5">
+                  <Label htmlFor="inq-name" className="text-xs uppercase tracking-wider text-white/60">Name</Label>
+                  <Input id="inq-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required className={inputDark} />
+                </div>
+
+                <div className="grid gap-3 grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="inq-phone" className="text-xs uppercase tracking-wider text-white/60">Phone</Label>
+                    <Input id="inq-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1..." autoComplete="tel" className={inputDark} />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="inq-notes">
-                      Anything else? <span className="text-muted-foreground">(optional)</span>
-                    </Label>
-                    <Textarea
-                      id="inq-notes"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={4}
-                      placeholder="Special requests, occasion, dietary preferences..."
-                    />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="inq-email" className="text-xs uppercase tracking-wider text-white/60">Email</Label>
+                    <Input id="inq-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className={inputDark} />
                   </div>
+                </div>
+                <p className="-mt-2 text-[10px] text-white/35">Phone or email — either works.</p>
 
-                  <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      'Send inquiry'
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
+                <div className="space-y-1.5">
+                  <Label htmlFor="inq-notes" className="text-xs uppercase tracking-wider text-white/60">
+                    Anything else? <span className="normal-case text-white/35">(optional)</span>
+                  </Label>
+                  <Textarea
+                    id="inq-notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Dates, occasion, special requests…"
+                    className={cn(inputDark, 'resize-none')}
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={submitting}>
+                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {submitting ? 'Sending…' : 'Send inquiry'}
+                </Button>
+
+              </form>
             </>
           )}
-        </Card>
+        </div>
       </div>
     </HeroBackdrop>
   );

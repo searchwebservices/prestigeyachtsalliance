@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import HeroBackdrop from '@/components/reserve/HeroBackdrop';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,6 +20,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast';
 import { submitToNetlifyForm } from '@/lib/netlifyForms';
 import { cn } from '@/lib/utils';
+
+const BG =
+  'https://uykzfpzawuyaroksyjsc.supabase.co/storage/v1/object/public/yacht-images/65bcc876-2023-4b04-be2c-4d80958999e3/1778898862256-0.jpg';
 
 type ExperienceId =
   | 'made-for-waves'
@@ -107,14 +109,11 @@ function StepIndicator({ step }: { step: Step }) {
         <span
           key={n}
           className={cn(
-            'h-1.5 rounded-full transition-all duration-300',
-            n === step ? 'w-8 bg-gold' : n < step ? 'w-6 bg-gold/60' : 'w-6 bg-white/30'
+            'h-1 rounded-full transition-all duration-300',
+            n === step ? 'w-8 bg-white' : n < step ? 'w-6 bg-white/50' : 'w-6 bg-white/20'
           )}
         />
       ))}
-      <span className="ml-2 text-xs font-medium uppercase tracking-[0.25em] text-white/70">
-        Step {step} of {STEP_TOTAL}
-      </span>
     </div>
   );
 }
@@ -193,32 +192,32 @@ function ExperienceCard({
 function DateField({
   id,
   label,
-  helper,
   value,
   onSelect,
   disabledMatcher,
 }: {
   id: string;
   label: string;
-  helper?: string;
   value: Date | undefined;
   onSelect: (date: Date | undefined) => void;
   disabledMatcher: (date: Date) => boolean;
 }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-white/70 text-xs uppercase tracking-wider">
+        {label}
+      </Label>
       <Popover>
         <PopoverTrigger asChild>
           <Button
             id={id}
             variant="outline"
             className={cn(
-              'w-full justify-start text-left font-normal',
-              !value && 'text-muted-foreground'
+              'w-full justify-start text-left font-normal border-white/20 bg-white/10 hover:bg-white/15 hover:border-white/35',
+              value ? 'text-white' : 'text-white/40'
             )}
           >
-            <CalendarDays className="mr-2 h-4 w-4" />
+            <CalendarDays className="mr-2 h-4 w-4 shrink-0" />
             {value ? format(value, 'EEEE, MMMM d, yyyy') : 'Select a date'}
           </Button>
         </PopoverTrigger>
@@ -232,10 +231,11 @@ function DateField({
           />
         </PopoverContent>
       </Popover>
-      {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
     </div>
   );
 }
+
+const inputDark = 'bg-white/10 border-white/20 text-white placeholder:text-white/35 focus-visible:border-white/50 focus-visible:ring-white/20';
 
 export default function ReserveBook() {
   const { toast } = useToast();
@@ -250,6 +250,7 @@ export default function ReserveBook() {
       setStep(2);
     }
   }, []);
+
   const [preferredDate, setPreferredDate] = useState<Date | undefined>(undefined);
   const [backupDate, setBackupDate] = useState<Date | undefined>(undefined);
   const [name, setName] = useState('');
@@ -266,41 +267,16 @@ export default function ReserveBook() {
     [experienceId]
   );
 
-  const datesValid =
-    !!preferredDate &&
-    !!backupDate &&
-    !sameDay(preferredDate, backupDate);
-
-  const stepTitle =
-    step === 1
-      ? 'Choose your experience'
-      : step === 2
-      ? 'Pick two dates that work'
-      : 'How can we reach you?';
-  const stepSubtitle =
-    step === 1
-      ? 'Tell us the kind of day you have in mind.'
-      : step === 2
-      ? 'A preferred date plus a backup gives us the most flexibility to lock you in.'
-      : 'A quick call or text is the fastest way to confirm details and tailor your day.';
-
-  const canContinue =
-    (step === 1 && !!experienceId) || (step === 2 && datesValid);
+  const datesValid = !!preferredDate && !!backupDate && !sameDay(preferredDate, backupDate);
+  const canContinue = (step === 1 && !!experienceId) || (step === 2 && datesValid);
   const canSubmit = !!name.trim() && !!phone.trim() && !submitting;
 
-  const goNext = () => {
-    if (!canContinue) return;
-    setStep((s) => Math.min(STEP_TOTAL, s + 1) as Step);
-  };
-
-  const goBack = () => {
-    setStep((s) => Math.max(1, s - 1) as Step);
-  };
+  const goNext = () => { if (canContinue) setStep((s) => Math.min(STEP_TOTAL, s + 1) as Step); };
+  const goBack = () => { setStep((s) => Math.max(1, s - 1) as Step); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || !selectedExperience || !preferredDate || !backupDate) return;
-
     setSubmitting(true);
     try {
       await submitToNetlifyForm('reservation_lead', {
@@ -328,255 +304,178 @@ export default function ReserveBook() {
   };
 
   const resetFlow = () => {
-    setStep(1);
-    setExperienceId(null);
-    setPreferredDate(undefined);
-    setBackupDate(undefined);
-    setName('');
-    setPhone('');
-    setEmail('');
-    setGuests('');
-    setNotes('');
-    setSubmitted(false);
+    setStep(1); setExperienceId(null); setPreferredDate(undefined); setBackupDate(undefined);
+    setName(''); setPhone(''); setEmail(''); setGuests(''); setNotes(''); setSubmitted(false);
   };
 
   return (
-    <HeroBackdrop>
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-6 md:px-6 md:py-8">
-        <Link
-          to="/reserve"
-          className="inline-flex items-center gap-2 self-start text-sm text-white/80 transition hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Link>
+    <HeroBackdrop bgSrc={BG} overlayClassName="bg-black/45">
+      <div className="flex min-h-screen items-start justify-center px-4 py-8 md:items-center">
 
         {submitted ? (
-          <Card className="mt-6 border-emerald-500/40 bg-card/95 shadow-2xl backdrop-blur-xl">
-            <CardContent className="space-y-4 p-8 text-center md:p-10">
-              <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
-              <h1 className="text-2xl font-semibold md:text-3xl">
-                Thanks — we'll be in touch shortly.
-              </h1>
-              <p className="text-sm text-muted-foreground md:text-base">
-                A member of the Prestige Yachts team will reach out by phone to confirm
-                your{' '}
-                <span className="font-medium text-foreground">
-                  {selectedExperience?.title.toLowerCase()}
-                </span>{' '}
-                and lock in the day. If you'd like to reach us first, call{' '}
-                <span className="whitespace-nowrap font-medium text-foreground">
-                  {RICARDO_PHONE_DISPLAY}
-                </span>
-                .
-              </p>
-              <div className="flex flex-wrap justify-center gap-3 pt-2">
-                <Button asChild variant="outline">
-                  <Link to="/reserve">Back to start</Link>
-                </Button>
-                <Button onClick={resetFlow}>Submit another request</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="w-full max-w-sm rounded-3xl border border-white/20 bg-black/55 px-8 py-10 text-center text-white shadow-2xl backdrop-blur-2xl">
+            <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-400" />
+            <h1 className="mt-4 text-2xl font-semibold">We're on it.</h1>
+            <p className="mt-2 text-sm text-white/60">
+              The Prestige team will reach out to confirm your{' '}
+              <span className="font-medium text-white">{selectedExperience?.title}</span> charter.
+              Questions? Call{' '}
+              <span className="font-medium text-white">{RICARDO_PHONE_DISPLAY}</span>.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <Button asChild variant="outline" className="border-white/20 text-white hover:bg-white/10 hover:text-white">
+                <Link to="/reserve">Back to start</Link>
+              </Button>
+              <Button variant="ghost" className="text-white/55 hover:text-white hover:bg-white/10" onClick={resetFlow}>
+                Submit another
+              </Button>
+            </div>
+          </div>
         ) : (
-          <>
-            <div className="mt-3 mb-4 text-white md:mt-4 md:mb-5">
-              <p className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/70 md:text-xs">
-                Reserve your day
-              </p>
-              <h1 className="mt-1.5 text-2xl font-semibold tracking-tight md:text-3xl">
-                {stepTitle}
-              </h1>
-              <p className="mt-1 max-w-2xl text-xs text-white/75 md:text-sm">
-                {stepSubtitle}
-              </p>
-              <div className="mt-3">
-                <StepIndicator step={step} />
-              </div>
+          <div className="w-full max-w-4xl rounded-3xl border border-white/20 bg-black/55 p-6 text-white shadow-2xl backdrop-blur-2xl md:p-8">
+
+            {/* header row */}
+            <div className="flex items-center justify-between">
+              <Link
+                to="/reserve"
+                className="inline-flex items-center gap-1.5 text-xs text-white/50 transition hover:text-white/90"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back
+              </Link>
+              <StepIndicator step={step} />
             </div>
 
-            <Card className="border-white/30 bg-card/95 shadow-2xl backdrop-blur-xl">
-              <CardContent className="p-4 md:p-5">
-                {step === 1 && (
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-4 md:gap-4">
-                    {EXPERIENCES.map((exp) => (
-                      <ExperienceCard
-                        key={exp.id}
-                        experience={exp}
-                        selected={experienceId === exp.id}
-                        onSelect={() => setExperienceId(exp.id)}
-                      />
-                    ))}
-                  </div>
-                )}
+            {/* step label + title */}
+            <div className="mt-5 mb-6">
+              <p className="text-[10px] font-medium uppercase tracking-[0.35em] text-white/40">
+                Step {step} of {STEP_TOTAL}
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
+                {step === 1 ? 'Pick a yacht.' : step === 2 ? 'Two dates.' : 'Your contact.'}
+              </h1>
+              {step === 2 && (
+                <p className="mt-1 text-sm text-white/50">
+                  Preferred + a backup so we have room to lock you in.
+                </p>
+              )}
+              {step === 3 && (
+                <p className="mt-1 text-sm text-white/50">
+                  A quick call is all it takes to confirm.
+                </p>
+              )}
+            </div>
 
-                {step === 2 && (
-                  <div className="grid gap-5 md:grid-cols-2">
-                    <DateField
-                      id="preferred-date"
-                      label="Preferred date"
-                      helper="The day you'd most like to be on the water."
-                      value={preferredDate}
-                      onSelect={setPreferredDate}
-                      disabledMatcher={(date) =>
-                        date < today ||
-                        (!!backupDate && sameDay(date, backupDate))
-                      }
-                    />
-                    <DateField
-                      id="backup-date"
-                      label="Backup date"
-                      helper="A second day that would also work for you."
-                      value={backupDate}
-                      onSelect={setBackupDate}
-                      disabledMatcher={(date) =>
-                        date < today ||
-                        (!!preferredDate && sameDay(date, preferredDate))
-                      }
-                    />
-                    {selectedExperience && (
-                      <div className="md:col-span-2">
-                        <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                          Selected experience
-                        </p>
-                        <p className="mt-1 text-sm font-medium text-foreground">
-                          {selectedExperience.title}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
+            {/* ── Step 1: yacht cards ── */}
+            {step === 1 && (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4 md:gap-4">
+                {EXPERIENCES.map((exp) => (
+                  <ExperienceCard
+                    key={exp.id}
+                    experience={exp}
+                    selected={experienceId === exp.id}
+                    onSelect={() => setExperienceId(exp.id)}
+                  />
+                ))}
+              </div>
+            )}
 
-                {step === 3 && (
-                  <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                    <div className="space-y-2">
-                      <Label htmlFor="lead-name">Your name</Label>
-                      <Input
-                        id="lead-name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        autoComplete="name"
-                        required
-                      />
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="lead-phone">Phone</Label>
-                        <Input
-                          id="lead-phone"
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="+1..."
-                          autoComplete="tel"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="lead-email">
-                          Email <span className="text-muted-foreground">(optional)</span>
-                        </Label>
-                        <Input
-                          id="lead-email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="you@example.com"
-                          autoComplete="email"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="lead-guests">
-                        Guests <span className="text-muted-foreground">(optional)</span>
-                      </Label>
-                      <Input
-                        id="lead-guests"
-                        type="number"
-                        min={1}
-                        value={guests}
-                        onChange={(e) => setGuests(e.target.value)}
-                        placeholder="How many people?"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="lead-notes">
-                        Anything else?{' '}
-                        <span className="text-muted-foreground">(optional)</span>
-                      </Label>
-                      <Textarea
-                        id="lead-notes"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        rows={4}
-                        placeholder="Special requests, occasion, dietary preferences..."
-                      />
-                    </div>
-
-                    <div className="rounded-xl border border-border/70 bg-muted/40 p-4">
-                      <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                        Your request
-                      </p>
-                      <ul className="mt-2 space-y-1 text-sm text-foreground">
-                        <li>
-                          <span className="font-medium">Experience:</span>{' '}
-                          {selectedExperience?.title || '—'}
-                        </li>
-                        <li>
-                          <span className="font-medium">Preferred:</span>{' '}
-                          {preferredDate ? format(preferredDate, 'EEE, MMM d, yyyy') : '—'}
-                        </li>
-                        <li>
-                          <span className="font-medium">Backup:</span>{' '}
-                          {backupDate ? format(backupDate, 'EEE, MMM d, yyyy') : '—'}
-                        </li>
-                      </ul>
-                    </div>
-                  </form>
-                )}
-
-                <div className="mt-6 flex items-center justify-between border-t border-border/60 pt-5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={goBack}
-                    disabled={step === 1}
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back
-                  </Button>
-                  {step < 3 ? (
-                    <Button
-                      type="button"
-                      onClick={goNext}
-                      disabled={!canContinue}
-                    >
-                      Continue
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={!canSubmit}
-                    >
-                      {submitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        'Send request'
-                      )}
-                    </Button>
-                  )}
+            {/* ── Step 2: dates ── */}
+            {step === 2 && (
+              <div className="mx-auto max-w-lg space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <DateField
+                    id="preferred-date"
+                    label="Preferred date"
+                    value={preferredDate}
+                    onSelect={setPreferredDate}
+                    disabledMatcher={(date) =>
+                      date < today || (!!backupDate && sameDay(date, backupDate))
+                    }
+                  />
+                  <DateField
+                    id="backup-date"
+                    label="Backup date"
+                    value={backupDate}
+                    onSelect={setBackupDate}
+                    disabledMatcher={(date) =>
+                      date < today || (!!preferredDate && sameDay(date, preferredDate))
+                    }
+                  />
                 </div>
-              </CardContent>
-            </Card>
-          </>
+                {selectedExperience && (
+                  <p className="text-xs text-white/40">
+                    Yacht: <span className="text-white/70">{selectedExperience.title}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ── Step 3: contact ── */}
+            {step === 3 && (
+              <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-4" noValidate>
+                <div className="space-y-1.5">
+                  <Label htmlFor="lead-name" className="text-xs uppercase tracking-wider text-white/70">Name</Label>
+                  <Input id="lead-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required className={inputDark} />
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lead-phone" className="text-xs uppercase tracking-wider text-white/70">Phone</Label>
+                    <Input id="lead-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1..." autoComplete="tel" required className={inputDark} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lead-email" className="text-xs uppercase tracking-wider text-white/70">Email <span className="normal-case text-white/35">(optional)</span></Label>
+                    <Input id="lead-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className={inputDark} />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lead-guests" className="text-xs uppercase tracking-wider text-white/70">Guests <span className="normal-case text-white/35">(optional)</span></Label>
+                    <Input id="lead-guests" type="number" min={1} value={guests} onChange={(e) => setGuests(e.target.value)} placeholder="How many?" className={inputDark} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lead-notes" className="text-xs uppercase tracking-wider text-white/70">Notes <span className="normal-case text-white/35">(optional)</span></Label>
+                    <Input id="lead-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Occasion, requests…" className={inputDark} />
+                  </div>
+                </div>
+
+                {/* summary */}
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-white/50 space-y-0.5">
+                  <p><span className="text-white/30">Yacht</span> {selectedExperience?.title ?? '—'}</p>
+                  <p><span className="text-white/30">Preferred</span> {preferredDate ? format(preferredDate, 'EEE, MMM d') : '—'}</p>
+                  <p><span className="text-white/30">Backup</span> {backupDate ? format(backupDate, 'EEE, MMM d') : '—'}</p>
+                </div>
+              </form>
+            )}
+
+            {/* nav */}
+            <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-5">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={goBack}
+                disabled={step === 1}
+                className="text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-0"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+              {step < 3 ? (
+                <Button type="button" onClick={goNext} disabled={!canContinue}>
+                  Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
+                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {submitting ? 'Sending…' : 'Send request'}
+                </Button>
+              )}
+            </div>
+
+          </div>
         )}
       </div>
     </HeroBackdrop>
