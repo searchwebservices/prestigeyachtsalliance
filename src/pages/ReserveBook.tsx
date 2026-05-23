@@ -241,7 +241,6 @@ function DateField({
 const COUNTRIES = [
   { code: 'US' as const, flag: '🇺🇸', dial: '+1',  placeholder: '(555) 000-0000' },
   { code: 'MX' as const, flag: '🇲🇽', dial: '+52', placeholder: '55 0000 0000'  },
-  { code: 'CA' as const, flag: '🇨🇦', dial: '+1',  placeholder: '(555) 000-0000' },
 ];
 type CountryCode = typeof COUNTRIES[number]['code'];
 
