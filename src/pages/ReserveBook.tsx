@@ -62,7 +62,7 @@ const EXPERIENCES: Experience[] = [
     imageSrc:
       'https://uykzfpzawuyaroksyjsc.supabase.co/storage/v1/object/public/yacht-images/e118183e-2e9d-4a7d-a322-8308aa6ac8d6/1778910496568-19.jpg',
     imageClassName: 'scale-[1.43] origin-[center_65%]',
-    imageHoverClassName: 'md:group-hover:scale-[1.47]',
+    imageHoverClassName: 'md:group-hover:scale-[1.63]',
   },
   {
     id: 'dawn-patrol',
@@ -154,8 +154,8 @@ function ExperienceCard({
           className={cn(
             'h-full w-full object-cover object-center transition-transform duration-500',
             experience.imageClassName,
-            experience.imageHoverClassName ?? 'md:group-hover:scale-[1.1]',
-            !experience.imageClassName && selected && 'max-md:scale-[1.07]'
+            experience.imageHoverClassName ?? 'md:group-hover:scale-[1.2]',
+            !experience.imageClassName && selected && 'max-md:scale-[1.12]'
           )}
         />
         {selected && (
