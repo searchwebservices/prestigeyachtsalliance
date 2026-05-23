@@ -235,6 +235,13 @@ function DateField({
   );
 }
 
+const COUNTRIES = [
+  { code: 'US' as const, flag: '🇺🇸', dial: '+1',  placeholder: '(555) 000-0000' },
+  { code: 'MX' as const, flag: '🇲🇽', dial: '+52', placeholder: '55 0000 0000'  },
+  { code: 'CA' as const, flag: '🇨🇦', dial: '+1',  placeholder: '(555) 000-0000' },
+];
+type CountryCode = typeof COUNTRIES[number]['code'];
+
 const inputDark = 'bg-white/10 border-white/20 text-white placeholder:text-white/35 focus-visible:border-white/50 focus-visible:ring-white/20';
 
 export default function ReserveBook() {
@@ -258,6 +265,7 @@ export default function ReserveBook() {
   const [email, setEmail] = useState('');
   const [guests, setGuests] = useState('');
   const [notes, setNotes] = useState('');
+  const [country, setCountry] = useState<CountryCode>('US');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -285,7 +293,7 @@ export default function ReserveBook() {
         preferred_date: format(preferredDate, 'yyyy-MM-dd'),
         backup_date: format(backupDate, 'yyyy-MM-dd'),
         name: name.trim(),
-        phone: phone.trim(),
+        phone: `${COUNTRIES.find(c => c.code === country)!.dial} ${phone.trim()}`,
         email: email.trim(),
         guests: guests.trim(),
         notes: notes.trim(),
@@ -305,7 +313,7 @@ export default function ReserveBook() {
 
   const resetFlow = () => {
     setStep(1); setExperienceId(null); setPreferredDate(undefined); setBackupDate(undefined);
-    setName(''); setPhone(''); setEmail(''); setGuests(''); setNotes(''); setSubmitted(false);
+    setName(''); setPhone(''); setEmail(''); setGuests(''); setNotes(''); setCountry('US'); setSubmitted(false);
   };
 
   return (
@@ -419,18 +427,50 @@ export default function ReserveBook() {
                   <Input id="lead-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required className={inputDark} />
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="lead-phone" className="text-xs uppercase tracking-wider text-white/70">Phone</Label>
-                    <Input id="lead-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1..." autoComplete="tel" required className={inputDark} />
+                <div className="space-y-1.5">
+                  <Label htmlFor="lead-phone" className="text-xs uppercase tracking-wider text-white/70">Phone</Label>
+                  <div className="flex gap-2">
+                    <div className="flex flex-col gap-1 shrink-0">
+                      {COUNTRIES.map((c) => (
+                        <button
+                          key={c.code}
+                          type="button"
+                          onClick={() => setCountry(c.code)}
+                          className={cn(
+                            'flex items-center gap-1.5 rounded-lg border px-2 py-1.5 leading-none transition duration-150',
+                            country === c.code
+                              ? 'border-white/50 bg-white/20 text-white'
+                              : 'border-white/15 bg-white/5 text-white/55 hover:border-white/30 hover:bg-white/10 hover:text-white/90'
+                          )}
+                        >
+                          <span className="text-sm leading-none">{c.flag}</span>
+                          <span className="text-[11px] font-medium">{c.dial}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="relative flex-1 min-w-0">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40 select-none">
+                        {COUNTRIES.find(c => c.code === country)!.dial}
+                      </span>
+                      <Input
+                        id="lead-phone"
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder={COUNTRIES.find(c => c.code === country)!.placeholder}
+                        autoComplete="tel"
+                        required
+                        className={cn(inputDark, 'pl-12 h-full min-h-[40px]')}
+                      />
+                    </div>
                   </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="lead-email" className="text-xs uppercase tracking-wider text-white/70">Email <span className="normal-case text-white/35">(optional)</span></Label>
                     <Input id="lead-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className={inputDark} />
                   </div>
-                </div>
-
-                <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="lead-guests" className="text-xs uppercase tracking-wider text-white/70">Guests <span className="normal-case text-white/35">(optional)</span></Label>
                     <Input id="lead-guests" type="number" min={1} value={guests} onChange={(e) => setGuests(e.target.value)} placeholder="How many?" className={inputDark} />
