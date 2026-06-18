@@ -10,6 +10,7 @@ import UserPreferenceSync from "@/components/preferences/UserPreferenceSync";
 import ScrollToTop from "@/components/ScrollToTop";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AgencyRoute from "@/components/AgencyRoute";
+import AdminRoute from "@/components/AdminRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -27,6 +28,7 @@ import YachtListing from "./pages/YachtListing";
 import NotFound from "./pages/NotFound";
 import ErrorsAdmin from "./pages/ErrorsAdmin";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import StripeSetup from "./pages/StripeSetup";
 
 const queryClient = new QueryClient();
 
@@ -119,6 +121,14 @@ const App = () => (
                     <ProtectedRoute>
                       <ErrorsAdmin />
                     </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/stripe-setup"
+                  element={
+                    <AdminRoute>
+                      <StripeSetup />
+                    </AdminRoute>
                   }
                 />
                 <Route path="*" element={<NotFound />} />
