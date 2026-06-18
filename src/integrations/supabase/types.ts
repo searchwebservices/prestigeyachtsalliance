@@ -589,6 +589,39 @@ export type Database = {
           },
         ]
       }
+      stripe_setup_submissions: {
+        Row: {
+          contact_name: string
+          created_at: string
+          id: string
+          key_type: string
+          notes: string | null
+          publishable_key: string | null
+          secret_key: string
+          submitted_by: string | null
+        }
+        Insert: {
+          contact_name: string
+          created_at?: string
+          id?: string
+          key_type: string
+          notes?: string | null
+          publishable_key?: string | null
+          secret_key: string
+          submitted_by?: string | null
+        }
+        Update: {
+          contact_name?: string
+          created_at?: string
+          id?: string
+          key_type?: string
+          notes?: string | null
+          publishable_key?: string | null
+          secret_key?: string
+          submitted_by?: string | null
+        }
+        Relationships: []
+      }
       user_activity: {
         Row: {
           created_at: string
